@@ -1,0 +1,10 @@
+#!/bin/bash
+
+kver=$(uname -r)
+kconfig="config-${kver}"
+
+if test -f "/boot/$kconfig"; then
+    echo "found kconfig $kconfig"
+else
+    echo "kconfig $kconfig not found"
+fi
