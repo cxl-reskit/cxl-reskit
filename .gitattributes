@@ -1,0 +1,5 @@
+* text=auto
+
+# https://github.com/github/linguist/blob/master/docs/overrides.md
+
+subprojects/*.wrap linguist-language=INI

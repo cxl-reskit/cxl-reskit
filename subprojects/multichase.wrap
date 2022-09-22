@@ -1,0 +1,9 @@
+[wrap-git]
+url = https://github.com/jagalactic/multichase.git
+revision = dax
+depth = 1
+
+patch_directory=multichase
+
+[provide]
+program_names = multichase, multiload, fairness, pingpong

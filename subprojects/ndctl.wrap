@@ -1,0 +1,10 @@
+[wrap-git]
+url = https://github.com/pmem/ndctl.git
+revision = main
+depth = 1
+
+[provide]
+cxl = cxl_tool
+libcxl = cxl_dep
+libdaxctl = daxtcl_dep
+libndctl = ndctl_dep

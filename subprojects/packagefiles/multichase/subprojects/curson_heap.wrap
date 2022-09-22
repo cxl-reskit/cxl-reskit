@@ -1,0 +1,9 @@
+[wrap-git]
+url = https://github.com/jagalactic/cursor_heap.git
+revision = master
+depth = 1
+
+patch_directory=cursor_heap
+
+[provide]
+dependency_names = cursorheap
