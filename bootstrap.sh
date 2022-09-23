@@ -8,9 +8,12 @@ mkdir -p benchmarks
 cd ./benchmarks
 git clone https://github.com/jagalactic/multichase.git
 git clone https://github.com/jagalactic/STREAM.git
+git clone https://github.com/cxl-reskit/stressapptest.git
 
-# note this one is local, not github yet
-git clone ssh://git@bitbucket.micron.com/sbusw/cxl-stressapptest.git
-
-wget https://www.intel.com/content/www/us/en/download/736633/736634/intel-memory-latency-checker-intel-mlc.html
+#
+# Clone the tools
+#
+cd -
+cd ./tools
+git clone https://github.com/pmem/ndctl.git
 
