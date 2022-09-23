@@ -9,6 +9,13 @@ Those tools are now becoming generalized for non-volatile CXL memory.
 
 But the ndctl repo also contains tools for administering volatile CXL memory, including daxctl and cxl_cli.
 
+## MlC
+
+One valuable tool that is not embedded within this Resource Kit is the mlc program from Intel. It is not
+open source, but can be freely downloaded from intel from [this web site](https://www.intel.com/content/www/us/en/developer/articles/tool/intelr-memory-latency-checker.html).
+
+You will need to download this tool in order to run the examples that use mlc.
+
 ## Usage Examples
 
 
