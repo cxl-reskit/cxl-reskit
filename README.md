@@ -28,6 +28,7 @@ CXL memory:
 * Does your kernel contain CXL support, and is it enabled?
 
 ## About Kernel Support for CXL Memory
+
 CXL memory may be the first "device" that many people encounter which does not require a driver to work.
 CXL memory (in the 1.1/2.0 time frame) is mapped by bios, and described to the operating system via ACPI tables.
 Even a kernel without CXL drivers can use CXL memory - once the memory is setup by bios, the CPU knows how to
@@ -63,12 +64,12 @@ do so in your own scripts or programs.
 
 ## Testing CXL Memory
 
-The benchmarks (hyperlink) subdirectory contains several tools for running microbenchmark workloads against
+The [benchmarks](benchmarks/README.md) subdirectory contains several tools for running microbenchmark workloads against
 CXL memory. Usage documentation for the various benchmarks is there.
 
 ## Configuring CXL Memory
 
-The tools (hyperlink - not there yet) subdirectory contains tools that you may need for configuration tasks.
+The [tools](tools/README.md) subdirectory contains tools that you may need for configuration tasks.
 For example, you will likely need to build and install the latest version of ndctl, because it contains
 the daxctl and cxl_cli tools - and packaged versions of ndctl are not new enough to contain sufficient 
 CXL-related functionality.
@@ -89,5 +90,5 @@ NUMA node, for that matter).
 numactl --membind 2 <my app command line>
 ```
 
-More extensive documentation is available in the tools (hyperlink) subdirectory.
+More extensive documentation is available in the [tools](tools/README.md) subdirectory.
 
