@@ -7,19 +7,19 @@ CXL memory.
 
 You can compile all the tools and benchmarks by running the top-level bootscript.sh script as follows:
 
-```
+```shell
 ./bootstrap.sh --build
 ```
 
 Or you can build the benchmarks by following the in-tree documentation in the subdirectories here 
-(multichase, STREAM, stressapptest). Note that it might be necessary to install compilers and 
+(e.g., multichase, STREAM, stressapptest). Note that it might be necessary to install compilers and 
 development tools to complete those builds.
 
 ## Testing CXL memory via DAX
 
 Check whether your memory is configured as special purpose memory:
 
-```
+```shell
 $ cxlstat --dax
 
 /dev/dax0.0
@@ -31,10 +31,13 @@ from conventional memory.
 
 ## Multichase
 
-Multichase is a graph analysis / pointer chasing benchmark. [Documentation can be found here](https://github.com/jagalactic/multichase).
+Multichase is a graph analysis / pointer chasing benchmark. [Documentation can be found here.](https://github.com/jagalactic/multichase).
+
+TODO: link multichase from cxl-reskit org.
+
 Run multichase against standard memory:
 
-```
+```shell
 # ./multichase -d /dev/dax0.0
 cheap_create_dax: /dev/dax0.0 size is 34359738368
 Allocated cursor_heap size 34359738368
@@ -43,7 +46,7 @@ Allocated cursor_heap size 34359738368
 
 Run multichase against a DAX device:
 
-```
+```shell
 # grep dax /proc/iomem
       1080000000-187fffffff : dax0.0
       1880000000-207fffffff : dax1.0
@@ -57,11 +60,13 @@ TODO: Substitute results from a faster CXL device.
 
 ## STREAM
 
-Stream is a benchmark for measuring sustained memory bandwidth. [Documentation can be found here](https://github.com/jagalactic/STREAM)
+Stream is a benchmark for measuring sustained memory bandwidth. [Documentation can be found here.](https://github.com/jagalactic/STREAM)
+
+TODO: link STREAM from cxl-reskit org.
 
 Run Stream against regular DRAM in a system:
 
-```
+```shell
 # ./stream_mu -a 1000000000
 arraycount: 1000000000
 a: 0x7fefbca00000
@@ -150,11 +155,11 @@ TODO: substitute results from a faster CXL device.
 
 ## Stressapptest
 
-Usage example, comparing a run in regular memory with a run in CXL memory
+TODO: Usage example, comparing a run in regular memory with a run in CXL memory
 
 ## Testing CXL memory via NUMA
 
-Usage examples, showing the following:
+TODO: Usage examples, showing the following:
 * convert SPM to a numa node with daxctl
 * Use numactl to run each benchmark in the cxl numa node
 
