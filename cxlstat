@@ -1,10 +1,88 @@
 #!/bin/bash
 
-kver=$(uname -r)
-kconfig="config-${kver}"
+VERBOSE=0
 
-if test -f "/boot/$kconfig"; then
-    echo "found kconfig $kconfig"
+#
+# on_linux
+#
+# Put the major kernel version in the first argument and the minor version
+# in he second argument.
+#
+function on_linux()
+{
+    if [ $(uname | tr [:upper:] [:lower:]) = "linux" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+#
+# kernel_version(major, minor)
+#
+# Put the major kernel version in the first argument and the minor version
+# in he second argument.
+#
+function kernel_version()
+{
+    local __kv_major=$1
+    local __kv_minor=$2
+    local __kv_ver_arr
+    IFS="." read -a __kv_ver_arr <<< $(uname -r)
+    eval ${__kv_major}="'${__kv_ver_arr[0]}'"
+    eval ${__kv_minor}="'${__kv_ver_arr[1]}'"
+}
+
+#
+# min_kernel_version
+#
+#
+function min_kernel_ver()
+{
+    local __mkv_min_major=$1
+    local __mkv_min_minor=$2
+    local __mkv_kv_major
+    local __mkv_kv_minor
+
+    kernel_version __mkv_kv_major __mkv_kv_minor
+
+    if (( __mkv_kv_major > __mkv_min_major )); then
+        return 0
+    elif (( (__mkv_kv_major == __mkv_min_major) && (__mkv_kv_minor >= __mkv_min_minor)  )); then
+        return 0
+    else
+        return 1
+    fi
+}
+
+KERNEL_MAJOR_VER_MIN=5
+KERNEL_MINOR_VER_MIN=12
+KERNEL_VER_MIN_STR=${KERNEL_MAJOR_VER_MIN}.${KERNEL_MINOR_VER_MIN}
+
+# Are we on Linux at all
+on_linux
+if [ $? -ne 0 ]; then
+    echo "${0} is only supported on Linux, exiting"
+    exit 1
+fi
+
+# Do we meet the minimum kernel version requirement
+min_kernel_ver 5 12
+if [ $? -ne 0 ]; then
+    echo "Minimum kernel version requirement not met:"
+    exit 1
 else
-    echo "kconfig $kconfig not found"
+    (( ${VERBOSE} == 1 )) && echo "Minimum kernel version requirement met - $(uname -r) vs. ${KERNEL_VER_MIN_STR}"
+fi
+
+KERN_VER=$(uname -r)
+
+# Check for kernel boot configuration
+KERN_CFG=/boot/config-${KERN_VER}
+if [[ ! -f ${KERN_CFG} ]]; then
+    echo "Kernel boot configuraiton not in known location"
+    echo "    expected ${KERN_CFG}"
+    exit 1
+else
+    (( ${VERBOSE} == 1 )) && echo "Kernel boot configuraiton located (${KERN_CFG})"
 fi
