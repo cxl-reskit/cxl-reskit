@@ -24,8 +24,8 @@ Clone this repository and run the bootstrap.sh script to fetch the external cont
 ## About Kernel Support for CXL Memory
 
 CXL memory may be the first "device" that many people encounter which does not require a driver to work.
-CXL memory (in the 1.1/2.0 time frame) is mapped by UEFI, and described to the operating system via ACPI tables.
-Even a kernel without CXL drivers can use CXL memory - once the memory is setup by UEFI, the CPU knows how to
+CXL memory (in the 1.1/2.0 time frame) is mapped by BIOS (implementing UEFI), and described to the operating system via ACPI tables.
+Even a kernel without CXL drivers can use CXL memory - once the memory is setup by BIOS, the CPU knows how to
 access the memory when host physical addresses (HPAs) that map to the CXL memory are accessed.
 
 Why do you need a driver? In a production environment you need it for certain administrative tasks
@@ -34,12 +34,12 @@ subsystem. TODO: check naming there.
 
 ## Special Purpose vs. General Purpose Memory
 
-The CXL consortium has counseled system UEFI and firmware developers to configure CXL memory as the EFI_CONVENTIONAL_MEMORY
+The CXL consortium has counseled system BIOS and firmware developers to configure CXL memory as the EFI_CONVENTIONAL_MEMORY
 type with the EFI_MEMORY_SP attribute. By default, if your kernel is new enough (>= 5.12 TODO CHECK THIS) your CXL memory will
 appear as a DAX device (e.g. `/dev/dax0.0`). In that configuration, apps can map and use the memory via mmap from the DAX
 device, or by using more advanced DAX-related tools.
 
-If your UEFI did not apply the EFI_MEMORY_SP attribute, or if your kernel is too old, your CXL memory will appear as 
+If your BIOS did not apply the EFI_MEMORY_SP attribute, or if your kernel is too old, your CXL memory will appear as 
 general purpose memory in a new NUMA node which has no local CPU cores associated with it. More on all of this later (TODO hyperlink).
 
 ## Examining Configured CXL Memory
@@ -76,8 +76,8 @@ CXL-related functionality.
 ## Running Apps in CXL Memory
 
 If your CXL memory is configured as Special Purpose memory, only apps that can map memory via DAX or DAXfs
-can use the memory. This has advantages, because the memory will not be used inadvertantly for apps that don't
-expect it, but it does require apps that know how to map DAX memory.  The bencharks (TODO hyperlink) contained in this repository
+can use the memory. This has advantages, because the memory will not be used inadvertently for apps that don't
+expect it, but it does require apps that know how to map DAX memory.  The benchmarks (TODO hyperlink) contained in this repository
 are modified to be able to test both CXL memory via DAX and conventional memory. (TODO in a later version, talk about linkage tricks
 and other allocators: convert this to a jira ticket and drop this parenthetical...).
 
