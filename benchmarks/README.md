@@ -38,11 +38,13 @@ TODO: link multichase from cxl-reskit org.
 Run multichase against standard memory:
 
 ```shell
-# ./multichase -d /dev/dax0.0
+# ./multichase 
 cheap_create_dax: /dev/dax0.0 size is 34359738368
 Allocated cursor_heap size 34359738368
 87.869
 ```
+
+TODO: figure out and explain what the output/result means from Multichase
 
 Run multichase against a DAX device:
 
