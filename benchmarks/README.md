@@ -155,7 +155,7 @@ TODO: substitute results from a faster CXL device.
 
 ## Stressapptest
 
-TODO: Usage example, comparing a run in regular memory with a run in CXL memory
+TODO: (Jacob) Usage example, comparing a run in regular memory with a run in CXL memory
 
 ## Testing CXL memory via NUMA
 
