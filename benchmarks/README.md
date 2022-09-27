@@ -20,9 +20,9 @@ development tools to complete those builds.
 Check whether your memory is configured as special purpose memory:
 
 ```shell
-$ cxlstat --dax
-
-/dev/dax0.0
+# grep dax /proc/iomem
+      1080000000-187fffffff : dax0.0
+      1880000000-207fffffff : dax1.0
 ```
 
 If your memory is configured as a DAX device, you can use the benchmarks to test the DAX memory.
@@ -49,9 +49,7 @@ TODO: figure out and explain what the output/result means from Multichase
 Run multichase against a DAX device:
 
 ```shell
-# grep dax /proc/iomem
-      1080000000-187fffffff : dax0.0
-      1880000000-207fffffff : dax1.0
+
 # ./multichase -d /dev/dax0.0
 cheap_create_dax: /dev/dax0.0 size is 34359738368
 Allocated cursor_heap size 34359738368
