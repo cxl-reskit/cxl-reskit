@@ -1,5 +1,5 @@
 # cxl-reskit
-This repository contains the Micron CXL Memory Resource Kit (CMRK) - a collection of both documentation (how does CXL memory
+This is the top-level repository of the Micron CXL Memory Resource Kit (CMRK) - a collection of both documentation (how does CXL memory
 really work in a system) and tools (benchmarks, administrative and diagnostic tools) to make it easy to get
 started with CXL memory.
 
@@ -10,7 +10,7 @@ Rather than flattening the code from external repositories, we have sourced exte
 various tools. This makes it easy to see what was modified, while still supporting easy use of the external
 tools.  It also allows us to propose patches to upstream maintainers.
 
-This code and documentation covers Linux usage and testing. Other operating systems are outside the initial
+This code and documentation covers Linux usage and testing. Other operating systems are outside the current
 scope.
 
 ## Getting Started
@@ -20,6 +20,11 @@ Clone this repository and run the bootstrap.sh script to fetch the external cont
 ```shell
   ./bootstrap.sh
 ```
+
+TODO: add a bulleted TOC list with links directly to topics of interest
+## Quick Links
+
+* [Checking Your CXL Configuration](https://github.com/cxl-reskit/cxl-reskit/edit/jmg-work/README.md#examining-configured-cxl-memory)
 
 ## About Kernel Support for CXL Memory
 
