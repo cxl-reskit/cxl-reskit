@@ -29,6 +29,20 @@ If your memory is configured as a DAX device, you can use the benchmarks to test
 In these configurations, the "memory under test" is the CXL memory, but the benchmark code is running
 from conventional memory.
 
+If you didn't see any dax devices above, your memory is probably "online" as a NUMA node. 
+```shell
+# numastat
+                           node0           node1
+numa_hit                36410450         9162514
+numa_miss                      0               0
+numa_foreign                   0               0
+interleave_hit             14593               0
+local_node              36410450               0
+other_node                     0         9162514
+```
+
+In this case, you can use the numactl program to [run benchmarks in the CXL numa node](https://github.com/cxl-reskit/cxl-reskit/edit/jmg-work/benchmarks/README.md#testing-cxl-memory-via-numa).
+
 ## Multichase
 
 Multichase is a graph analysis / pointer chasing benchmark. [Documentation can be found here.](https://github.com/jagalactic/multichase).
