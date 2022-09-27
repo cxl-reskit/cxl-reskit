@@ -60,6 +60,8 @@ Allocated cursor_heap size 34359738368
 
 TODO: Substitute results from a faster CXL device.
 
+When running multichase with the "-d <daxdev>" argument, the memory-under-test is allocated from the DAX device, but all other memory used by the benchmark (code, stacks, local data) is allocated from regular DRAM. 
+
 ## STREAM
 
 Stream is a benchmark for measuring sustained memory bandwidth. [Documentation can be found here.](https://github.com/jagalactic/STREAM)
@@ -153,6 +155,8 @@ Solution Validates: avg error less than 1.000000e-13 on all three arrays
 -------------------------------------------------------------
 ```
 
+When running stream_mu with the "--memdev <daxdev>" argument, the memory-under-test is allocated from the DAX device, but all other memory used by the benchmark (code, stacks, local data) is allocated from regular DRAM. 
+      
 TODO: substitute results from a faster CXL device.
 
 ## Stressapptest
@@ -160,8 +164,10 @@ TODO: substitute results from a faster CXL device.
 TODO: (Jacob) Usage example, comparing a run in regular memory with a run in CXL memory
 
 ## Testing CXL memory via NUMA
+      
+The examples above work when your CXL memory is configured as special purpose (AKA soft reserved) memory - which is mappable via DAX. It is also possible to use CXL memory when it is "online" as a NUMA node. (TODO: link to conversion example in tools)
+
 
 TODO: Usage examples, showing the following:
-* convert SPM to a numa node with daxctl
-* Use numactl to run each benchmark in the cxl numa node
+* Use numactl to run each benchmark in the normal and cxl numa nodes
 
