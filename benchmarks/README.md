@@ -20,14 +20,28 @@ development tools to complete those builds.
 Check whether your memory is configured as special purpose memory:
 
 ```shell
-$ cxlstat --dax
-
-/dev/dax0.0
+# grep dax /proc/iomem
+      1080000000-187fffffff : dax0.0
+      1880000000-207fffffff : dax1.0
 ```
 
 If your memory is configured as a DAX device, you can use the benchmarks to test the DAX memory.
 In these configurations, the "memory under test" is the CXL memory, but the benchmark code is running
 from conventional memory.
+
+If you didn't see any dax devices above, your memory is probably "online" as a NUMA node. 
+```shell
+# numastat
+                           node0           node1
+numa_hit                36410450         9162514
+numa_miss                      0               0
+numa_foreign                   0               0
+interleave_hit             14593               0
+local_node              36410450               0
+other_node                     0         9162514
+```
+
+In this case, you can use the numactl program to [run benchmarks in the CXL numa node](https://github.com/cxl-reskit/cxl-reskit/edit/jmg-work/benchmarks/README.md#testing-cxl-memory-via-numa).
 
 ## Multichase
 
@@ -38,18 +52,18 @@ TODO: link multichase from cxl-reskit org.
 Run multichase against standard memory:
 
 ```shell
-# ./multichase -d /dev/dax0.0
+# ./multichase 
 cheap_create_dax: /dev/dax0.0 size is 34359738368
 Allocated cursor_heap size 34359738368
 87.869
 ```
 
+TODO: figure out and explain what the output/result means from Multichase
+
 Run multichase against a DAX device:
 
 ```shell
-# grep dax /proc/iomem
-      1080000000-187fffffff : dax0.0
-      1880000000-207fffffff : dax1.0
+
 # ./multichase -d /dev/dax0.0
 cheap_create_dax: /dev/dax0.0 size is 34359738368
 Allocated cursor_heap size 34359738368
@@ -57,6 +71,8 @@ Allocated cursor_heap size 34359738368
 ```
 
 TODO: Substitute results from a faster CXL device.
+
+When running multichase with the "-d <daxdev>" argument, the memory-under-test is allocated from the DAX device, but all other memory used by the benchmark (code, stacks, local data) is allocated from regular DRAM. 
 
 ## STREAM
 
@@ -151,15 +167,19 @@ Solution Validates: avg error less than 1.000000e-13 on all three arrays
 -------------------------------------------------------------
 ```
 
+When running stream_mu with the "--memdev <daxdev>" argument, the memory-under-test is allocated from the DAX device, but all other memory used by the benchmark (code, stacks, local data) is allocated from regular DRAM. 
+      
 TODO: substitute results from a faster CXL device.
 
 ## Stressapptest
 
-TODO: Usage example, comparing a run in regular memory with a run in CXL memory
+TODO: (Jacob) Usage example, comparing a run in regular memory with a run in CXL memory
 
 ## Testing CXL memory via NUMA
+      
+The examples above work when your CXL memory is configured as special purpose (AKA soft reserved) memory - which is mappable via DAX. It is also possible to use CXL memory when it is "online" as a NUMA node. (TODO: link to conversion example in tools)
+
 
 TODO: Usage examples, showing the following:
-* convert SPM to a numa node with daxctl
-* Use numactl to run each benchmark in the cxl numa node
+* Use numactl to run each benchmark in the normal and cxl numa nodes
 
