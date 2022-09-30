@@ -1,12 +1,21 @@
 #!/bin/bash
 
-VERBOSE=0
+VERBOSE=1
+STRICT=1
+
+# ------------------------------------------------------------------------------------------------
+#
+# Utility Functions
+#
+# ------------------------------------------------------------------------------------------------
 
 #
 # on_linux
+#     major_kernel_version : out
+#     major_kernel_version : out
 #
-# Put the major kernel version in the first argument and the minor version
-# in he second argument.
+# Places the major kernel version in the first argument and the minor version
+# in the second argument.
 #
 function on_linux()
 {
@@ -18,24 +27,57 @@ function on_linux()
 }
 
 #
-# kernel_version(major, minor)
+# which_linux
+#     distro_string : out
+#     distro        : out
 #
-# Put the major kernel version in the first argument and the minor version
-# in he second argument.
+# Places the distro name in the first argument and a short-form name (i.e., ubuntu or fedora)
+# in the second argument.
+#
+function which_linux()
+{
+    local __wl_distro_str_out=$1
+    local __wl_distro_out=$2
+    local __wl_hd
+    local __wl_md
+
+    if [[ -f /etc/os-release ]]; then
+        __wl_hd=$(awk -F= '/^NAME/{print $2}' /etc/os-release | tr -d \")
+        __wl_md=$( echo ${__wl_hd} | awk '{print $1}' | tr [:upper:] [:lower:] )
+    else
+        __wl_hd=unknown
+        __wl_md=unknown
+    fi
+
+    eval ${__wl_distro_str_out}="'${__wl_hd}'"
+    eval ${__wl_distro_out}="'${__wl_md}'"
+}
+
+#
+# kernel_version
+#     major_version : out
+#     minor_version : out
+#
+# Places the major kernel version in the first argument and the minor version
+# in the second argument.
 #
 function kernel_version()
 {
-    local __kv_major=$1
-    local __kv_minor=$2
+    local __kv_major_out=$1
+    local __kv_minor_out=$2
     local __kv_ver_arr
     IFS="." read -a __kv_ver_arr <<< $(uname -r)
-    eval ${__kv_major}="'${__kv_ver_arr[0]}'"
-    eval ${__kv_minor}="'${__kv_ver_arr[1]}'"
+    eval ${__kv_major_out}="'${__kv_ver_arr[0]}'"
+    eval ${__kv_minor_out}="'${__kv_ver_arr[1]}'"
 }
 
 #
 # min_kernel_version
+#     minimum_major_version : in
+#     minimum_minor_version : in
 #
+# Returns shell-style true/false based on whether the currently running kernel meets the
+# minimum version specified by the caller.
 #
 function min_kernel_ver()
 {
@@ -55,19 +97,102 @@ function min_kernel_ver()
     fi
 }
 
+#
+# deb_package_check
+#     package_name       : in
+#     package_installed  : out
+#     package_version    : out
+#     package_upgradable : out
+#
+# Checks whether the package given by the supplied name is installed and sets the second
+# argument to 0/1 accordingly. If it is installed, then the third argument and fourth
+# arguments respectively are set to the major and minor version of the package. The fifth
+# argument is set to 0/1 if the package is-not/is currently upgradable
+#
+function deb_package_check()
+{
+    local __dpc_package_nm=$1
+    local __dpc_installed_out=$2
+    local __dpc_major_ver_out=$3
+    local __dpc_minor_ver_out=$4
+    local __dpc_upgradable_out=$5
+
+    local __dpc_installed
+    local __dpc_major_ver
+    local __dpc_minor_ver
+    local __dpc_upgradable
+
+    
+    if dpkg -s ${__dpc_package_nm} > /dev/null 2>&1 ; then
+        __dpc_installed=1
+    else
+        __dpc_installed=0
+        __dpc_version=0
+        __dpc_upgradable=0
+    fi
+
+    if (( ${__dpc_installed} == 1 )); then
+        local __dpc_tmp=$(dpkg -s ${__dpc_package_nm} | grep Version | awk '{print $2}')
+        if [[ ${__dpc_tmp} =~ ([0-9]+):(.*) ]] ; then
+            # there is an epoch for the version, ignore it
+            __dpc_tmp=${BASH_REMATCH[2]}
+            if [[ ${__dpc_tmp} =~ (.*)-([[:alnum:]]*) ]] ; then
+                # there is an epoch for the version, ignore it
+                __dpc_tmp=${BASH_REMATCH[1]}
+            fi
+        fi
+        if [[ ${__dpc_tmp} =~ ([[:digit:]]+).([[:digit:]]+) ]] ; then
+            __dpc_major_ver=${BASH_REMATCH[1]}
+            __dpc_minor_ver=${BASH_REMATCH[2]}
+        elif [[ ${__dpc_tmp} =~ ([[:digit:]]+) ]] ; then
+            __dpc_major_ver=${BASH_REMATCH[1]}
+            __dpc_minor_ver=0
+        fi
+        __dpc_version=$(dpkg -s ${__dpc_package_nm} | grep Version | awk '{print $2}' | cut -d . -f 1)
+
+        if apt-get -s upgrade | grep ${__dpc_package_nm} > /dev/null 2>&1 ; then
+           __dpc_upgradable=1
+        else
+           __dpc_upgradable=0
+        fi
+    fi
+
+    eval ${__dpc_installed_out}="'${__dpc_installed}'"
+    eval ${__dpc_major_ver_out}="'${__dpc_major_ver}'"
+    eval ${__dpc_minor_ver_out}="'${__dpc_minor_ver}'"
+    eval ${__dpc_upgradable_out}="'${__dpc_upgradable}'"
+}
+
+
+# ------------------------------------------------------------------------------------------------
+#
+# Primary Execution Sequence
+#
+# ------------------------------------------------------------------------------------------------
+
 KERNEL_MAJOR_VER_MIN=5
 KERNEL_MINOR_VER_MIN=12
 KERNEL_VER_MIN_STR=${KERNEL_MAJOR_VER_MIN}.${KERNEL_MINOR_VER_MIN}
 
-# Are we on Linux at all
+# Check if the system is running Linux
 on_linux
 if [ $? -ne 0 ]; then
     echo "${0} is only supported on Linux, exiting"
     exit 1
 fi
 
-# Do we meet the minimum kernel version requirement
-min_kernel_ver 5 12
+# Set up the distro information
+which_linux LINUX_DISTRO_STR LINUX_DISTRO
+(( ${VERBOSE} == 1 )) && echo "Detected ${LINUX_DISTRO_STR}"
+if (( ${STRICT} == 1 )); then
+    if [ ${LINUX_DISTRO} != ubuntu -a ${LINUX_DISTRO} != fedora ]; then
+        echo "Must be running one of Fedora or Ubuntu, exiting"
+        exit 1
+    fi
+fi
+
+# Check if the kernel meets the minimum version requirement
+min_kernel_ver ${KERNEL_MAJOR_VER_MIN} ${KERNEL_MINOR_VER_MIN}
 if [ $? -ne 0 ]; then
     echo "Minimum kernel version requirement not met:"
     exit 1
@@ -75,14 +200,30 @@ else
     (( ${VERBOSE} == 1 )) && echo "Minimum kernel version requirement met - $(uname -r) vs. ${KERNEL_VER_MIN_STR}"
 fi
 
+# Set kernel version and check for kernel boot configuration
 KERN_VER=$(uname -r)
-
-# Check for kernel boot configuration
 KERN_CFG=/boot/config-${KERN_VER}
 if [[ ! -f ${KERN_CFG} ]]; then
     echo "Kernel boot configuraiton not in known location"
     echo "    expected ${KERN_CFG}"
     exit 1
 else
-    (( ${VERBOSE} == 1 )) && echo "Kernel boot configuraiton located (${KERN_CFG})"
+    (( ${VERBOSE} == 1 )) && echo "Kernel boot configuration located (${KERN_CFG})"
+fi
+
+# Check to see whether we booted via UEFI or BIOS
+KERN_VER=$(uname -r)
+KERN_CFG=/boot/config-${KERN_VER}
+if [[ ! -d /sys/firmware/efi ]]; then
+    UEFI_MODE=1
+    (( ${VERBOSE} == 1 )) && echo "System booted using UEFI"
+else
+    UEFI_MODE=0
+    (( ${VERBOSE} == 1 )) && echo "System booted using BIOS"
+fi
+
+if [[ ${LINUX_DISTRO} == ubuntu ]]; then
+    deb_package_check ndctl NDCTL_PRESENT NDCTL_VERSION NDCTL_UPGRADABLE
+else
+
 fi
