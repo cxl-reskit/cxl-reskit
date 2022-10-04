@@ -154,6 +154,38 @@ function min_kernel_ver()
 }
 
 #
+# get_kernel_cxl_options
+#     config : in
+#
+# NOTE - This function relies on a global associative array called CXL_OPTIONS
+#
+# This function scans the kernel configuration file passed as an argument, looking
+# for CXL options. It has a set of known variables that it is looking for but will
+# add others to the array if they are found.
+#
+function get_kernel_cxl_options()
+{
+    local config=${1}
+
+    eval CXL_OPTIONS[CONFIG_CXL_BUS]=""
+    eval CXL_OPTIONS[CONFIG_CXL_PCI]=""
+    eval CXL_OPTIONS[CONFIG_CXL_MEM_RAW_COMMANDS]=""
+    eval CXL_OPTIONS[CONFIG_CXL_ACPI]=""
+    eval CXL_OPTIONS[CONFIG_CXL_PMEM]=""
+    eval CXL_OPTIONS[CONFIG_CXL_MEM]=""
+    eval CXL_OPTIONS[CONFIG_CXL_PORT]=""
+    eval CXL_OPTIONS[CONFIG_CXL_REGION]=""
+
+    if [[ -f ${config} && -r ${config} ]]; then
+        for setting in $(cat ${config} | grep CONFIG_CXL) ; do
+            if [[ ${setting} =~ (CONFIG_CXL_[[:alpha:]]+)[[:space:]]*=[[:space:]]*([[:alnum:]]+) ]] ; then
+                eval CXL_OPTIONS["${BASH_REMATCH[1]}"]=${BASH_REMATCH[2]}
+            fi
+        done
+    fi
+}
+
+#
 # deb_package_check
 #     package_name       : in
 #     package_installed  : out
@@ -351,8 +383,8 @@ fi
 KERN_VER=$(uname -r)
 KERN_CFG=${ROOT_PREFIX}/boot/config-${KERN_VER}
 if [[ ! -f ${KERN_CFG} ]]; then
-    echo "Kernel boot configuraiton not in known location"
-    echo "    expected ${KERN_CFG}"
+    echo "Kernel boot configuraiton not in known location, expected ${KERN_CFG}"
+    echo "    The kernel compile options are unknown"
     exit 1
 else
     (( ${VERBOSE} == 1 )) && echo "Kernel boot configuration located (${KERN_CFG})"
@@ -368,8 +400,27 @@ else
     (( ${VERBOSE} == 1 )) && echo "System booted using BIOS"
 fi
 
-if [[ ${LINUX_DISTRO} == ubuntu ]]; then
-    deb_package_check ndctl NDCTL_PRESENT NDCTL_MAJOR_VER NDCTL_MINOR_VER NDCTL_UPGRADABLE
-else
+# Attempt to obtain CXL options
+declare -A CXL_OPTIONS
+get_kernel_cxl_options ${KERN_CFG}
 
+if (( ${VERBOSE} == 1 )) ; then
+    if [[ ($CXL_OPTIONS[CONFIG_CXL_MEM_RAW_COMMANDS] == y) ||
+          ($CXL_OPTIONS[CONFIG_CXL_MEM_RAW_COMMANDS] == m) ]] ; then
+        echo "Standard and vendor-specific CXL mailbox commands may be used"
+    else
+        echo "Only standard CXL mailbox commands may be used"
+    fi
+fi
+
+if [[ ${LINUX_DISTRO} == ubuntu ]]; then
+    deb_package_check daxctll DAXCTL_PRESENT DAXCTL_MAJOR_VER DAXCTL_MINOR_VER DAXCTL_UPGRADABLE
+else
+    rpm_package_check daxctl DAXCTL_PRESENT DAXCTL_MAJOR_VER DAXCTL_MINOR_VER DAXCTL_UPGRADABLE
+fi
+
+if (( ${DAXCTL_PRESENT} == 0 )) ; then
+    echo "The package daxctl does not appear to be installed. Please install the latest version."
+else
+    echo "daxctl version: ${DAXCTL_MAJOR_VER}.${DAXCTL_MINOR_VER}"
 fi
