@@ -3,10 +3,10 @@
 VERBOSE=1
 STRICT=1
 
+ROOT_PREFIX=
+
 # ------------------------------------------------------------------------------------------------
-#
-# Utility Functions
-#
+# Utility Functions Start (db4de81e-a31e-491d-a9dc-17a3e63be914)
 # ------------------------------------------------------------------------------------------------
 
 #
@@ -41,9 +41,9 @@ function which_linux()
     local __wl_hd
     local __wl_md
 
-    if [[ -f /etc/os-release ]]; then
-        __wl_hd=$(awk -F= '/^NAME/{print $2}' /etc/os-release | tr -d \")
-        __wl_md=$( echo ${__wl_hd} | awk '{print $1}' | tr [:upper:] [:lower:] )
+    if [[ -f ${ROOT_PREFIX}/etc/os-release ]]; then
+        __wl_hd=$(awk -F= '/^NAME/{print $2}' ${ROOT_PREFIX}/etc/os-release | tr -d \")
+        __wl_md=$( echo ${__wl_hd} | cut -d ' ' -f 1 | tr [:upper:] [:lower:] )
     else
         __wl_hd=unknown
         __wl_md=unknown
@@ -53,22 +53,80 @@ function which_linux()
     eval ${__wl_distro_out}="'${__wl_md}'"
 }
 
-#
-# kernel_version
-#     major_version : out
-#     minor_version : out
-#
-# Places the major kernel version in the first argument and the minor version
-# in the second argument.
-#
-function kernel_version()
+function version_to_major_minor()
 {
-    local __kv_major_out=$1
-    local __kv_minor_out=$2
-    local __kv_ver_arr
-    IFS="." read -a __kv_ver_arr <<< $(uname -r)
-    eval ${__kv_major_out}="'${__kv_ver_arr[0]}'"
-    eval ${__kv_minor_out}="'${__kv_ver_arr[1]}'"
+    local __vtmm_version_str=${1}
+    local __vtmm_major_ver_out=${2}
+    local __vtmm_minor_ver_out=${3}
+
+    local __vtmm_major_ver
+    local __vtmm_minor_ver
+
+    if [[ ${__vtmm_version_str} =~ ([[:digit:]]+)\.([[:digit:]]+) ]] ; then
+        __vtmm_major_ver=${BASH_REMATCH[1]}
+        __vtmm_minor_ver=${BASH_REMATCH[2]}
+    elif [[ ${__vtmm_version_str} =~ ([[:digit:]]+) ]] ; then
+        __vtmm_major_ver=${BASH_REMATCH[1]}
+        __vtmm_minor_ver=0
+    fi
+
+    eval ${__vtmm_major_ver_out}="'${__vtmm_major_ver}'"
+    eval ${__vtmm_minor_ver_out}="'${__vtmm_minor_ver}'"
+}
+
+#
+# version_gt
+#     lhs_major_version : in
+#     lhs_minor_version : in
+#     rhs_major_version : in
+#     rhs_minor_version : in
+#
+# Returns shell true/false if the left hand side major/minor version pair is greater
+# than the right hand side major/minor version pair.
+#
+function version_gt()
+{
+    local __vgt_lhs_major=${1}
+    local __vgt_lhs_minor=${2}
+    local __vgt_rhs_major=${3}
+    local __vgt_rhs_minor=${4}
+
+    if [[ ${__vgt_lhs_major} -gt ${__vgt_rhs_major} ]]; then
+        return 0
+    elif [[ ${__vgt_lhs_major} -eq ${__vgt_rhs_major} && \
+            ${__vgt_lhs_minor} -gt ${__vgt_rhs_minor}  ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+#
+# version_gte
+#     lhs_major_version : in
+#     lhs_minor_version : in
+#     rhs_major_version : in
+#     rhs_minor_version : in
+#
+# Returns shell true/false if the left hand side major/minor version pair is greater
+# than or equal to the right hand side major/minor version pair.
+#
+function version_gte()
+{
+    local __vgt_lhs_major=${1}
+    local __vgt_lhs_minor=${2}
+    local __vgt_rhs_major=${3}
+    local __vgt_rhs_minor=${4}
+
+    if [[ ${__vgt_lhs_major} -gt ${__vgt_rhs_major} ]]; then
+        return 0
+    elif [[ ${__vgt_lhs_major} -eq ${__vgt_rhs_major} &&   \
+            ( ${__vgt_lhs_minor} -gt ${__vgt_rhs_minor} || \
+              ${__vgt_lhs_minor} -eq ${__vgt_rhs_minor} ) ]]; then
+        return 0
+    else
+        return 1
+    fi
 }
 
 #
@@ -76,7 +134,7 @@ function kernel_version()
 #     minimum_major_version : in
 #     minimum_minor_version : in
 #
-# Returns shell-style true/false based on whether the currently running kernel meets the
+# Returns shell true/false based on whether the currently running kernel meets the
 # minimum version specified by the caller.
 #
 function min_kernel_ver()
@@ -86,11 +144,9 @@ function min_kernel_ver()
     local __mkv_kv_major
     local __mkv_kv_minor
 
-    kernel_version __mkv_kv_major __mkv_kv_minor
-
-    if (( __mkv_kv_major > __mkv_min_major )); then
-        return 0
-    elif (( (__mkv_kv_major == __mkv_min_major) && (__mkv_kv_minor >= __mkv_min_minor)  )); then
+    version_to_major_minor "$(uname -r)" __mkv_kv_major __mkv_kv_minor
+    if version_gte ${__mkv_kv_major} ${__mkv_kv_minor} \
+                   ${__mkv_min_major} ${__mkv_min_minor} ; then
         return 0
     else
         return 1
@@ -121,34 +177,28 @@ function deb_package_check()
     local __dpc_major_ver
     local __dpc_minor_ver
     local __dpc_upgradable
-
     
     if dpkg -s ${__dpc_package_nm} > /dev/null 2>&1 ; then
         __dpc_installed=1
     else
         __dpc_installed=0
-        __dpc_version=0
+        __dpc_major_ver=0
+        __dpc_minor_ver=0
         __dpc_upgradable=0
     fi
 
     if (( ${__dpc_installed} == 1 )); then
-        local __dpc_tmp=$(dpkg -s ${__dpc_package_nm} | grep Version | awk '{print $2}')
+        local __dpc_tmp=$(dpkg -s ${__dpc_package_nm} | grep Version | cut -d ' ' -f 2)
         if [[ ${__dpc_tmp} =~ ([0-9]+):(.*) ]] ; then
             # there is an epoch for the version, ignore it
             __dpc_tmp=${BASH_REMATCH[2]}
             if [[ ${__dpc_tmp} =~ (.*)-([[:alnum:]]*) ]] ; then
-                # there is an epoch for the version, ignore it
+                # there a debian version string on the end, ignore it
                 __dpc_tmp=${BASH_REMATCH[1]}
             fi
         fi
-        if [[ ${__dpc_tmp} =~ ([[:digit:]]+).([[:digit:]]+) ]] ; then
-            __dpc_major_ver=${BASH_REMATCH[1]}
-            __dpc_minor_ver=${BASH_REMATCH[2]}
-        elif [[ ${__dpc_tmp} =~ ([[:digit:]]+) ]] ; then
-            __dpc_major_ver=${BASH_REMATCH[1]}
-            __dpc_minor_ver=0
-        fi
-        __dpc_version=$(dpkg -s ${__dpc_package_nm} | grep Version | awk '{print $2}' | cut -d . -f 1)
+
+        version_to_major_minor ${__dpc_tmp} __dpc_major_ver __dpc_minor_ver
 
         if apt-get -s upgrade | grep ${__dpc_package_nm} > /dev/null 2>&1 ; then
            __dpc_upgradable=1
@@ -162,6 +212,103 @@ function deb_package_check()
     eval ${__dpc_minor_ver_out}="'${__dpc_minor_ver}'"
     eval ${__dpc_upgradable_out}="'${__dpc_upgradable}'"
 }
+
+#
+# rpm_check_upgradable
+#     package_name          : in
+#     package_major_version : in
+#     package_minor_version : in
+#
+# Checks whether the package given by the supplied name is upgradable, defined as being
+# Returns shell true/false if the package given by the supplied name is upgradable.
+# A package is upgradable if dnf lists a version that is greater than the given version
+#
+function rpm_check_upgradable()
+{
+    local __rcu_package_nm=$1
+    local __rcu_curr_major_ver=$2
+    local __rcu_curr_minor_ver=$3
+
+    local __rcu_tmp_major_ver
+    local __rcu_tmp_minor_ver
+    local __version
+
+    for __version in $(dnf --showduplicates list --available  ${__rcu_package_nm} | \
+                         grep ${__rcu_package_nm} 2>&1                            | \
+                         tr -s " "                                                | \
+                         cut -d ' ' -f 2)
+    do
+        version_to_major_minor ${__version} __rcu_tmp_major_ver __rcu_tmp_minor_ver
+        if version_gt ${__rcu_tmp_major_ver}  ${__rcu_tmp_minor_ver} \
+                      ${__rcu_curr_major_ver} ${__rcu_curr_major_ver} ; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+#
+# rpm_package_check
+#     package_name       : in
+#     package_installed  : out
+#     package_version    : out
+#     package_upgradable : out
+#
+# Checks whether the package given by the supplied name is installed and sets the second
+# argument to 0/1 accordingly. If it is installed, then the third argument and fourth
+# arguments respectively are set to the major and minor version of the package. The fifth
+# argument is set to 0/1 if the package is-not/is currently upgradable
+#
+function rpm_package_check()
+{
+    local __rpc_package_nm=$1
+    local __rpc_installed_out=$2
+    local __rpc_major_ver_out=$3
+    local __rpc_minor_ver_out=$4
+    local __rpc_upgradable_out=$5
+
+    local __rpc_installed
+    local __rpc_major_ver
+    local __rpc_minor_ver
+    local __rpc_upgradable
+
+    if rpm -q -s ${__rpc_package_nm} > /dev/null 2>&1 ; then
+        __rpc_installed=1
+    else
+        __rpc_installed=0
+        __rpc_major_ver=0
+        __rpc_minor_ver=0
+        __rpc_upgradable=0
+    fi
+
+    if (( ${__rpc_installed} == 1 )); then
+        local __rpc_tmp=$(rpm -q --queryformat '%{VERSION}' ${__rpc_package_nm})
+        if [[ ${__rpc_tmp} =~ ([[:digit:]]+).([[:digit:]]+) ]] ; then
+            __rpc_major_ver=${BASH_REMATCH[1]}
+            __rpc_minor_ver=${BASH_REMATCH[2]}
+        elif [[ ${__rpc_tmp} =~ ([[:digit:]]+) ]] ; then
+            __rpc_major_ver=${BASH_REMATCH[1]}
+            __rpc_minor_ver=0
+        fi
+
+        if rpm_check_upgradable ${__rpc_package_nm} ${__rpc_major_ver} ${__rpc_minor_ver} ; then
+            __rpc_upgradable=1
+        else
+            __rpc_upgradable=0
+        fi
+    fi
+
+    eval ${__rpc_installed_out}="'${__rpc_installed}'"
+    eval ${__rpc_major_ver_out}="'${__rpc_major_ver}'"
+    eval ${__rpc_minor_ver_out}="'${__rpc_minor_ver}'"
+    eval ${__rpc_upgradable_out}="'${__rpc_upgradable}'"
+}
+
+# ------------------------------------------------------------------------------------------------
+# Utility Functions End (db4de81e-a31e-491d-a9dc-17a3e63be914)
+# ------------------------------------------------------------------------------------------------
+
 
 
 # ------------------------------------------------------------------------------------------------
@@ -202,7 +349,7 @@ fi
 
 # Set kernel version and check for kernel boot configuration
 KERN_VER=$(uname -r)
-KERN_CFG=/boot/config-${KERN_VER}
+KERN_CFG=${ROOT_PREFIX}/boot/config-${KERN_VER}
 if [[ ! -f ${KERN_CFG} ]]; then
     echo "Kernel boot configuraiton not in known location"
     echo "    expected ${KERN_CFG}"
@@ -212,9 +359,8 @@ else
 fi
 
 # Check to see whether we booted via UEFI or BIOS
-KERN_VER=$(uname -r)
-KERN_CFG=/boot/config-${KERN_VER}
-if [[ ! -d /sys/firmware/efi ]]; then
+
+if [[ ! -d ${ROOT_PREFIX}/sys/firmware/efi ]]; then
     UEFI_MODE=1
     (( ${VERBOSE} == 1 )) && echo "System booted using UEFI"
 else
@@ -223,7 +369,7 @@ else
 fi
 
 if [[ ${LINUX_DISTRO} == ubuntu ]]; then
-    deb_package_check ndctl NDCTL_PRESENT NDCTL_VERSION NDCTL_UPGRADABLE
+    deb_package_check ndctl NDCTL_PRESENT NDCTL_MAJOR_VER NDCTL_MINOR_VER NDCTL_UPGRADABLE
 else
 
 fi
