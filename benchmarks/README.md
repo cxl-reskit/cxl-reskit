@@ -11,8 +11,8 @@ You can compile all the tools and benchmarks by running the top-level bootscript
 ./bootstrap.sh --build
 ```
 
-Or you can build the benchmarks by following the in-tree documentation in the subdirectories here 
-(e.g., multichase, STREAM, stressapptest). Note that it might be necessary to install compilers and 
+Or you can build the benchmarks by following the in-tree documentation in the subdirectories here
+(e.g., multichase, STREAM, stressapptest). Note that it might be necessary to install compilers and
 development tools to complete those builds.
 
 ## Testing CXL memory via DAX
@@ -29,7 +29,8 @@ If your memory is configured as a DAX device, you can use the benchmarks to test
 In these configurations, the "memory under test" is the CXL memory, but the benchmark code is running
 from conventional memory.
 
-If you didn't see any dax devices above, your memory is probably "online" as a NUMA node. 
+If you didn't see any dax devices above, your memory is probably "online" as a NUMA node.
+
 ```shell
 # numastat
                            node0           node1
@@ -52,7 +53,7 @@ TODO: link multichase from cxl-reskit org.
 Run multichase against standard memory:
 
 ```shell
-# ./multichase 
+# ./multichase
 cheap_create_dax: /dev/dax0.0 size is 34359738368
 Allocated cursor_heap size 34359738368
 87.869
@@ -72,7 +73,7 @@ Allocated cursor_heap size 34359738368
 
 TODO: Substitute results from a faster CXL device.
 
-When running multichase with the "-d <daxdev>" argument, the memory-under-test is allocated from the DAX device, but all other memory used by the benchmark (code, stacks, local data) is allocated from regular DRAM. 
+When running multichase with the `-d <daxdev>` argument, the memory-under-test is allocated from the DAX device, but all other memory used by the benchmark (code, stacks, local data) is allocated from regular DRAM.
 
 ## STREAM
 
@@ -125,7 +126,7 @@ Solution Validates: avg error less than 1.000000e-13 on all three arrays
 
 Run Stream against CXL memory in a system:
 
-```
+```shell
 # ./stream_mu -a 1000000000 --memdev /dev/dax0.0
 arraycount: 1000000000
 memdev: /dev/dax0.0
@@ -167,8 +168,8 @@ Solution Validates: avg error less than 1.000000e-13 on all three arrays
 -------------------------------------------------------------
 ```
 
-When running stream_mu with the "--memdev <daxdev>" argument, the memory-under-test is allocated from the DAX device, but all other memory used by the benchmark (code, stacks, local data) is allocated from regular DRAM. 
-      
+When running stream_mu with the `--memdev <daxdev>` argument, the memory-under-test is allocated from the DAX device, but all other memory used by the benchmark (code, stacks, local data) is allocated from regular DRAM.
+
 TODO: substitute results from a faster CXL device.
 
 ## Stressapptest
@@ -176,10 +177,9 @@ TODO: substitute results from a faster CXL device.
 TODO: (Jacob) Usage example, comparing a run in regular memory with a run in CXL memory
 
 ## Testing CXL memory via NUMA
-      
+
 The examples above work when your CXL memory is configured as special purpose (AKA soft reserved) memory - which is mappable via DAX. It is also possible to use CXL memory when it is "online" as a NUMA node. (TODO: link to conversion example in tools)
 
-
 TODO: Usage examples, showing the following:
-* Use numactl to run each benchmark in the normal and cxl numa nodes
 
+* Use numactl to run each benchmark in the normal and cxl numa nodes
