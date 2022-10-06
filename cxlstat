@@ -19,7 +19,7 @@ ROOT_PREFIX=
 #
 function on_linux()
 {
-    if [ $(uname | tr [:upper:] [:lower:]) = "linux" ]; then
+    if [ "$(uname | tr [:upper:] [:lower:])" = "linux" ]; then
         return 0
     else
         return 1
@@ -36,42 +36,42 @@ function on_linux()
 #
 function which_linux()
 {
-    local __wl_distro_str_out=$1
-    local __wl_distro_out=$2
+    local -n __wl_distro_str_out=$1
+    local -n __wl_distro_out=$2
     local __wl_hd
     local __wl_md
 
-    if [[ -f ${ROOT_PREFIX}/etc/os-release ]]; then
-        __wl_hd=$(awk -F= '/^NAME/{print $2}' ${ROOT_PREFIX}/etc/os-release | tr -d \")
-        __wl_md=$( echo ${__wl_hd} | cut -d ' ' -f 1 | tr [:upper:] [:lower:] )
+    if [[ -f "${ROOT_PREFIX}"/etc/os-release ]]; then
+        __wl_hd=$(awk -F= '/^NAME/{print $2}' "${ROOT_PREFIX}"/etc/os-release | tr -d \")
+        __wl_md=$( echo "${__wl_hd}" | cut -d ' ' -f 1 | tr [:upper:] [:lower:] )
     else
         __wl_hd=unknown
         __wl_md=unknown
     fi
 
-    eval ${__wl_distro_str_out}="'${__wl_hd}'"
-    eval ${__wl_distro_out}="'${__wl_md}'"
+    __wl_distro_str_out=${__wl_hd}
+    __wl_distro_out=${__wl_md}
 }
 
 function version_to_major_minor()
 {
     local __vtmm_version_str=${1}
-    local __vtmm_major_ver_out=${2}
-    local __vtmm_minor_ver_out=${3}
+    local -n __vtmm_major_ver_out=${2}
+    local -n __vtmm_minor_ver_out=${3}
 
     local __vtmm_major_ver
     local __vtmm_minor_ver
 
-    if [[ ${__vtmm_version_str} =~ ([[:digit:]]+)\.([[:digit:]]+) ]] ; then
+    if [[ "${__vtmm_version_str}" =~ ([[:digit:]]+)\.([[:digit:]]+) ]] ; then
         __vtmm_major_ver=${BASH_REMATCH[1]}
         __vtmm_minor_ver=${BASH_REMATCH[2]}
-    elif [[ ${__vtmm_version_str} =~ ([[:digit:]]+) ]] ; then
+    elif [[ "${__vtmm_version_str}" =~ ([[:digit:]]+) ]] ; then
         __vtmm_major_ver=${BASH_REMATCH[1]}
         __vtmm_minor_ver=0
     fi
 
-    eval ${__vtmm_major_ver_out}="'${__vtmm_major_ver}'"
-    eval ${__vtmm_minor_ver_out}="'${__vtmm_minor_ver}'"
+    __vtmm_major_ver_out=${__vtmm_major_ver}
+    __vtmm_minor_ver_out=${__vtmm_minor_ver}
 }
 
 #
@@ -91,10 +91,10 @@ function version_gt()
     local __vgt_rhs_major=${3}
     local __vgt_rhs_minor=${4}
 
-    if [[ ${__vgt_lhs_major} -gt ${__vgt_rhs_major} ]]; then
+    if [[ "${__vgt_lhs_major}" -gt "${__vgt_rhs_major}" ]]; then
         return 0
-    elif [[ ${__vgt_lhs_major} -eq ${__vgt_rhs_major} && \
-            ${__vgt_lhs_minor} -gt ${__vgt_rhs_minor}  ]]; then
+    elif [[ "${__vgt_lhs_major}" -eq "${__vgt_rhs_major}" && \
+            "${__vgt_lhs_minor}" -gt "${__vgt_rhs_minor}"  ]]; then
         return 0
     else
         return 1
@@ -118,11 +118,11 @@ function version_gte()
     local __vgt_rhs_major=${3}
     local __vgt_rhs_minor=${4}
 
-    if [[ ${__vgt_lhs_major} -gt ${__vgt_rhs_major} ]]; then
+    if [[ "${__vgt_lhs_major}" -gt "${__vgt_rhs_major}" ]]; then
         return 0
-    elif [[ ${__vgt_lhs_major} -eq ${__vgt_rhs_major} &&   \
-            ( ${__vgt_lhs_minor} -gt ${__vgt_rhs_minor} || \
-              ${__vgt_lhs_minor} -eq ${__vgt_rhs_minor} ) ]]; then
+    elif [[ "${__vgt_lhs_major}" -eq "${__vgt_rhs_major}" &&   \
+            ( "${__vgt_lhs_minor}" -gt "${__vgt_rhs_minor}" || \
+              "${__vgt_lhs_minor}" -eq "${__vgt_rhs_minor}" ) ]]; then
         return 0
     else
         return 1
@@ -145,8 +145,8 @@ function min_kernel_ver()
     local __mkv_kv_minor
 
     version_to_major_minor "$(uname -r)" __mkv_kv_major __mkv_kv_minor
-    if version_gte ${__mkv_kv_major} ${__mkv_kv_minor} \
-                   ${__mkv_min_major} ${__mkv_min_minor} ; then
+    if version_gte "${__mkv_kv_major}" "${__mkv_kv_minor}" \
+                   "${__mkv_min_major}" "${__mkv_min_minor}" ; then
         return 0
     else
         return 1
@@ -166,22 +166,23 @@ function min_kernel_ver()
 function get_kernel_cxl_options()
 {
     local config=${1}
+    local setting
 
-    eval CXL_OPTIONS[CONFIG_CXL_BUS]=""
-    eval CXL_OPTIONS[CONFIG_CXL_PCI]=""
-    eval CXL_OPTIONS[CONFIG_CXL_MEM_RAW_COMMANDS]=""
-    eval CXL_OPTIONS[CONFIG_CXL_ACPI]=""
-    eval CXL_OPTIONS[CONFIG_CXL_PMEM]=""
-    eval CXL_OPTIONS[CONFIG_CXL_MEM]=""
-    eval CXL_OPTIONS[CONFIG_CXL_PORT]=""
-    eval CXL_OPTIONS[CONFIG_CXL_REGION]=""
+    CXL_OPTIONS[CONFIG_CXL_BUS]=""
+    CXL_OPTIONS[CONFIG_CXL_PCI]=""
+    CXL_OPTIONS[CONFIG_CXL_MEM_RAW_COMMANDS]=""
+    CXL_OPTIONS[CONFIG_CXL_ACPI]=""
+    CXL_OPTIONS[CONFIG_CXL_PMEM]=""
+    CXL_OPTIONS[CONFIG_CXL_MEM]=""
+    CXL_OPTIONS[CONFIG_CXL_PORT]=""
+    CXL_OPTIONS[CONFIG_CXL_REGION]=""
 
-    if [[ -f ${config} && -r ${config} ]]; then
-        for setting in $(cat ${config} | grep CONFIG_CXL) ; do
-            if [[ ${setting} =~ (CONFIG_CXL_[[:alpha:]]+)[[:space:]]*=[[:space:]]*([[:alnum:]]+) ]] ; then
-                eval CXL_OPTIONS["${BASH_REMATCH[1]}"]=${BASH_REMATCH[2]}
+    if [[ -f "${config}" && -r "${config}" ]]; then
+        while read setting; do
+            if [[ "${setting}" =~ (CONFIG_CXL_[[:alpha:]_]+)[[:space:]]*=[[:space:]]*([[:alnum:]]+) ]] ; then
+                CXL_OPTIONS[${BASH_REMATCH[1]}]=${BASH_REMATCH[2]}
             fi
-        done
+        done < <(grep CONFIG_CXL "${config}")
     fi
 }
 
@@ -200,17 +201,17 @@ function get_kernel_cxl_options()
 function deb_package_check()
 {
     local __dpc_package_nm=$1
-    local __dpc_installed_out=$2
-    local __dpc_major_ver_out=$3
-    local __dpc_minor_ver_out=$4
-    local __dpc_upgradable_out=$5
+    local -n __dpc_installed_out=$2
+    local -n __dpc_major_ver_out=$3
+    local -n __dpc_minor_ver_out=$4
+    local -n __dpc_upgradable_out=$5
 
     local __dpc_installed
     local __dpc_major_ver
     local __dpc_minor_ver
     local __dpc_upgradable
     
-    if dpkg -s ${__dpc_package_nm} > /dev/null 2>&1 ; then
+    if dpkg -s "${__dpc_package_nm}" > /dev/null 2>&1 ; then
         __dpc_installed=1
     else
         __dpc_installed=0
@@ -219,30 +220,30 @@ function deb_package_check()
         __dpc_upgradable=0
     fi
 
-    if (( ${__dpc_installed} == 1 )); then
-        local __dpc_tmp=$(dpkg -s ${__dpc_package_nm} | grep Version | cut -d ' ' -f 2)
-        if [[ ${__dpc_tmp} =~ ([0-9]+):(.*) ]] ; then
+    if (( "${__dpc_installed}" == 1 )); then
+        local __dpc_tmp=$(dpkg -s "${__dpc_package_nm}" | grep Version | cut -d ' ' -f 2)
+        if [[ "${__dpc_tmp}" =~ ([0-9]+):(.*) ]] ; then
             # there is an epoch for the version, ignore it
             __dpc_tmp=${BASH_REMATCH[2]}
-            if [[ ${__dpc_tmp} =~ (.*)-([[:alnum:]]*) ]] ; then
+            if [[ "${__dpc_tmp}" =~ (.*)-([[:alnum:]]*) ]] ; then
                 # there a debian version string on the end, ignore it
                 __dpc_tmp=${BASH_REMATCH[1]}
             fi
         fi
 
-        version_to_major_minor ${__dpc_tmp} __dpc_major_ver __dpc_minor_ver
+        version_to_major_minor "${__dpc_tmp}" __dpc_major_ver __dpc_minor_ver
 
-        if apt-get -s upgrade | grep ${__dpc_package_nm} > /dev/null 2>&1 ; then
+        if apt-get -s upgrade | grep "${__dpc_package_nm}" > /dev/null 2>&1 ; then
            __dpc_upgradable=1
         else
            __dpc_upgradable=0
         fi
     fi
 
-    eval ${__dpc_installed_out}="'${__dpc_installed}'"
-    eval ${__dpc_major_ver_out}="'${__dpc_major_ver}'"
-    eval ${__dpc_minor_ver_out}="'${__dpc_minor_ver}'"
-    eval ${__dpc_upgradable_out}="'${__dpc_upgradable}'"
+    __dpc_installed_out=${__dpc_installed}
+    __dpc_major_ver_out=${__dpc_major_ver}
+    __dpc_minor_ver_out=${__dpc_minor_ver}
+    __dpc_upgradable_out=${__dpc_upgradable}
 }
 
 #
@@ -265,14 +266,14 @@ function rpm_check_upgradable()
     local __rcu_tmp_minor_ver
     local __version
 
-    for __version in $(dnf --showduplicates list --available  ${__rcu_package_nm} | \
-                         grep ${__rcu_package_nm} 2>&1                            | \
-                         tr -s " "                                                | \
+    for __version in $(dnf -q --showduplicates list --available  "${__rcu_package_nm}" | \
+                         grep "${__rcu_package_nm}" 2>&1                            | \
+                         tr -s " "                                                  | \
                          cut -d ' ' -f 2)
     do
-        version_to_major_minor ${__version} __rcu_tmp_major_ver __rcu_tmp_minor_ver
-        if version_gt ${__rcu_tmp_major_ver}  ${__rcu_tmp_minor_ver} \
-                      ${__rcu_curr_major_ver} ${__rcu_curr_major_ver} ; then
+        version_to_major_minor "${__version}" __rcu_tmp_major_ver __rcu_tmp_minor_ver
+        if version_gt "${__rcu_tmp_major_ver}"  "${__rcu_tmp_minor_ver}" \
+                      "${__rcu_curr_major_ver}" "${__rcu_curr_major_ver}" ; then
             return 0
         fi
     done
@@ -295,17 +296,17 @@ function rpm_check_upgradable()
 function rpm_package_check()
 {
     local __rpc_package_nm=$1
-    local __rpc_installed_out=$2
-    local __rpc_major_ver_out=$3
-    local __rpc_minor_ver_out=$4
-    local __rpc_upgradable_out=$5
+    local -n __rpc_installed_out=$2
+    local -n __rpc_major_ver_out=$3
+    local -n __rpc_minor_ver_out=$4
+    local -n __rpc_upgradable_out=$5
 
     local __rpc_installed
     local __rpc_major_ver
     local __rpc_minor_ver
     local __rpc_upgradable
 
-    if rpm -q -s ${__rpc_package_nm} > /dev/null 2>&1 ; then
+    if rpm -q -s "${__rpc_package_nm}" > /dev/null 2>&1 ; then
         __rpc_installed=1
     else
         __rpc_installed=0
@@ -314,27 +315,27 @@ function rpm_package_check()
         __rpc_upgradable=0
     fi
 
-    if (( ${__rpc_installed} == 1 )); then
-        local __rpc_tmp=$(rpm -q --queryformat '%{VERSION}' ${__rpc_package_nm})
-        if [[ ${__rpc_tmp} =~ ([[:digit:]]+).([[:digit:]]+) ]] ; then
+    if (( "${__rpc_installed}" == 1 )); then
+        local __rpc_tmp=$(rpm -q --queryformat '%{VERSION}' "${__rpc_package_nm}")
+        if [[ "${__rpc_tmp}" =~ ([[:digit:]]+).([[:digit:]]+) ]] ; then
             __rpc_major_ver=${BASH_REMATCH[1]}
             __rpc_minor_ver=${BASH_REMATCH[2]}
-        elif [[ ${__rpc_tmp} =~ ([[:digit:]]+) ]] ; then
+        elif [[ "${__rpc_tmp}" =~ ([[:digit:]]+) ]] ; then
             __rpc_major_ver=${BASH_REMATCH[1]}
             __rpc_minor_ver=0
         fi
 
-        if rpm_check_upgradable ${__rpc_package_nm} ${__rpc_major_ver} ${__rpc_minor_ver} ; then
+        if rpm_check_upgradable "${__rpc_package_nm}" "${__rpc_major_ver}" "${__rpc_minor_ver}" ; then
             __rpc_upgradable=1
         else
             __rpc_upgradable=0
         fi
     fi
 
-    eval ${__rpc_installed_out}="'${__rpc_installed}'"
-    eval ${__rpc_major_ver_out}="'${__rpc_major_ver}'"
-    eval ${__rpc_minor_ver_out}="'${__rpc_minor_ver}'"
-    eval ${__rpc_upgradable_out}="'${__rpc_upgradable}'"
+    __rpc_installed_out=${__rpc_installed}
+    __rpc_major_ver_out=${__rpc_major_ver}
+    __rpc_minor_ver_out=${__rpc_minor_ver}
+    __rpc_upgradable_out=${__rpc_upgradable}
 }
 
 # ------------------------------------------------------------------------------------------------
@@ -362,21 +363,21 @@ fi
 
 # Set up the distro information
 which_linux LINUX_DISTRO_STR LINUX_DISTRO
-(( ${VERBOSE} == 1 )) && echo "Detected ${LINUX_DISTRO_STR}"
-if (( ${STRICT} == 1 )); then
-    if [ ${LINUX_DISTRO} != ubuntu -a ${LINUX_DISTRO} != fedora ]; then
+(( "${VERBOSE}" == 1 )) && echo "Detected ${LINUX_DISTRO_STR}"
+if (( "${STRICT}" == 1 )); then
+    if [ "${LINUX_DISTRO}" != ubuntu -a "${LINUX_DISTRO}" != fedora ]; then
         echo "Must be running one of Fedora or Ubuntu, exiting"
         exit 1
     fi
 fi
 
 # Check if the kernel meets the minimum version requirement
-min_kernel_ver ${KERNEL_MAJOR_VER_MIN} ${KERNEL_MINOR_VER_MIN}
+min_kernel_ver "${KERNEL_MAJOR_VER_MIN}" "${KERNEL_MINOR_VER_MIN}"
 if [ $? -ne 0 ]; then
     echo "Minimum kernel version requirement not met:"
     exit 1
 else
-    (( ${VERBOSE} == 1 )) && echo "Minimum kernel version requirement met - $(uname -r) vs. ${KERNEL_VER_MIN_STR}"
+    (( "${VERBOSE}" == 1 )) && echo "Minimum kernel version requirement met - $(uname -r) vs. ${KERNEL_VER_MIN_STR}"
 fi
 
 # Set kernel version and check for kernel boot configuration
@@ -387,40 +388,41 @@ if [[ ! -f ${KERN_CFG} ]]; then
     echo "    The kernel compile options are unknown"
     exit 1
 else
-    (( ${VERBOSE} == 1 )) && echo "Kernel boot configuration located (${KERN_CFG})"
+    (( "${VERBOSE}" == 1 )) && echo "Kernel boot configuration located (${KERN_CFG})"
 fi
 
 # Check to see whether we booted via UEFI or BIOS
 
-if [[ ! -d ${ROOT_PREFIX}/sys/firmware/efi ]]; then
+if [[ ! -d "${ROOT_PREFIX}"/sys/firmware/efi ]]; then
     UEFI_MODE=1
-    (( ${VERBOSE} == 1 )) && echo "System booted using UEFI"
+    (( "${VERBOSE}" == 1 )) && echo "System booted using UEFI"
 else
     UEFI_MODE=0
-    (( ${VERBOSE} == 1 )) && echo "System booted using BIOS"
+    (( "${VERBOSE}" == 1 )) && echo "System booted using BIOS"
 fi
 
 # Attempt to obtain CXL options
 declare -A CXL_OPTIONS
-get_kernel_cxl_options ${KERN_CFG}
-
-if (( ${VERBOSE} == 1 )) ; then
-    if [[ ($CXL_OPTIONS[CONFIG_CXL_MEM_RAW_COMMANDS] == y) ||
-          ($CXL_OPTIONS[CONFIG_CXL_MEM_RAW_COMMANDS] == m) ]] ; then
+get_kernel_cxl_options "${KERN_CFG}"
+if (( "${VERBOSE}" == 1 )) ; then
+    if [[ "${CXL_OPTIONS[CONFIG_CXL_MEM_RAW_COMMANDS]}" == y ||
+          "${CXL_OPTIONS[CONFIG_CXL_MEM_RAW_COMMANDS]}" == m ]] ; then
         echo "Standard and vendor-specific CXL mailbox commands may be used"
     else
         echo "Only standard CXL mailbox commands may be used"
     fi
 fi
 
-if [[ ${LINUX_DISTRO} == ubuntu ]]; then
+if [[ "${LINUX_DISTRO}" == ubuntu ]]; then
     deb_package_check daxctll DAXCTL_PRESENT DAXCTL_MAJOR_VER DAXCTL_MINOR_VER DAXCTL_UPGRADABLE
 else
     rpm_package_check daxctl DAXCTL_PRESENT DAXCTL_MAJOR_VER DAXCTL_MINOR_VER DAXCTL_UPGRADABLE
 fi
 
-if (( ${DAXCTL_PRESENT} == 0 )) ; then
+if (( "${DAXCTL_PRESENT}" == 0 )) ; then
     echo "The package daxctl does not appear to be installed. Please install the latest version."
 else
     echo "daxctl version: ${DAXCTL_MAJOR_VER}.${DAXCTL_MINOR_VER}"
 fi
+
+exit 0
