@@ -32,6 +32,7 @@ for unit_test in ./ut_*.sh ; do
         continue
     fi
     echo "# Running test ${iteration} of ${unit_test_count} - ${unit_test}"
-    echo "1..$(grep -c declare_ut ${unit_test})"
+    test_count=$(grep -c "^declare_ut" "${unit_test}")
+    echo "1..${test_count}"
     ${unit_test}
 done

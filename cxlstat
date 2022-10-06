@@ -86,15 +86,15 @@ function version_to_major_minor()
 #
 function version_gt()
 {
-    local __vgt_lhs_major=${1}
-    local __vgt_lhs_minor=${2}
-    local __vgt_rhs_major=${3}
-    local __vgt_rhs_minor=${4}
+    local lhs_major=${1}
+    local lhs_minor=${2}
+    local rhs_major=${3}
+    local rhs_minor=${4}
 
-    if [[ "${__vgt_lhs_major}" -gt "${__vgt_rhs_major}" ]]; then
+    if [[ "${lhs_major}" -gt "${rhs_major}" ]]; then
         return 0
-    elif [[ "${__vgt_lhs_major}" -eq "${__vgt_rhs_major}" && \
-            "${__vgt_lhs_minor}" -gt "${__vgt_rhs_minor}"  ]]; then
+    elif [[ "${lhs_major}" -eq "${rhs_major}" && \
+            "${lhs_minor}" -gt "${rhs_minor}"  ]]; then
         return 0
     else
         return 1
@@ -113,16 +113,16 @@ function version_gt()
 #
 function version_gte()
 {
-    local __vgt_lhs_major=${1}
-    local __vgt_lhs_minor=${2}
-    local __vgt_rhs_major=${3}
-    local __vgt_rhs_minor=${4}
+    local lhs_major=${1}
+    local lhs_minor=${2}
+    local rhs_major=${3}
+    local rhs_minor=${4}
 
-    if [[ "${__vgt_lhs_major}" -gt "${__vgt_rhs_major}" ]]; then
+    if [[ "${lhs_major}" -gt "${rhs_major}" ]]; then
         return 0
-    elif [[ "${__vgt_lhs_major}" -eq "${__vgt_rhs_major}" &&   \
-            ( "${__vgt_lhs_minor}" -gt "${__vgt_rhs_minor}" || \
-              "${__vgt_lhs_minor}" -eq "${__vgt_rhs_minor}" ) ]]; then
+    elif [[ "${lhs_major}" -eq "${rhs_major}" &&   \
+            ( "${lhs_minor}" -gt "${rhs_minor}" || \
+              "${lhs_minor}" -eq "${rhs_minor}" ) ]]; then
         return 0
     else
         return 1
@@ -139,14 +139,13 @@ function version_gte()
 #
 function min_kernel_ver()
 {
-    local __mkv_min_major=$1
-    local __mkv_min_minor=$2
-    local __mkv_kv_major
-    local __mkv_kv_minor
+    local min_major=$1
+    local min_minor=$2
+    local kv_major
+    local kv_minor
 
-    version_to_major_minor "$(uname -r)" __mkv_kv_major __mkv_kv_minor
-    if version_gte "${__mkv_kv_major}" "${__mkv_kv_minor}" \
-                   "${__mkv_min_major}" "${__mkv_min_minor}" ; then
+    version_to_major_minor "$(uname -r)" kv_major kv_minor
+    if version_gte "${kv_major}" "${kv_minor}" "${min_major}" "${min_minor}" ; then
         return 0
     else
         return 1
@@ -258,22 +257,22 @@ function deb_package_check()
 #
 function rpm_check_upgradable()
 {
-    local __rcu_package_nm=$1
-    local __rcu_curr_major_ver=$2
-    local __rcu_curr_minor_ver=$3
+    local package_nm=$1
+    local curr_major_ver=$2
+    local curr_minor_ver=$3
 
-    local __rcu_tmp_major_ver
-    local __rcu_tmp_minor_ver
-    local __version
+    local tmp_major_ver
+    local tmp_minor_ver
+    local version
 
-    for __version in $(dnf -q --showduplicates list --available  "${__rcu_package_nm}" | \
-                         grep "${__rcu_package_nm}" 2>&1                            | \
-                         tr -s " "                                                  | \
-                         cut -d ' ' -f 2)
+    for version in $(dnf -q --showduplicates list --available  "${package_nm}" | \
+                       grep "${package_nm}" 2>&1                               | \
+                       tr -s " "                                               | \
+                       cut -d ' ' -f 2)
     do
-        version_to_major_minor "${__version}" __rcu_tmp_major_ver __rcu_tmp_minor_ver
-        if version_gt "${__rcu_tmp_major_ver}"  "${__rcu_tmp_minor_ver}" \
-                      "${__rcu_curr_major_ver}" "${__rcu_curr_major_ver}" ; then
+        version_to_major_minor "${version}" tmp_major_ver tmp_minor_ver
+        if version_gt "${tmp_major_ver}"  "${tmp_minor_ver}" \
+                      "${curr_major_ver}" "${curr_major_ver}" ; then
             return 0
         fi
     done
