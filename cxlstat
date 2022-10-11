@@ -349,8 +349,18 @@ function rpm_package_check()
 #
 # ------------------------------------------------------------------------------------------------
 
+# Check to see whether we booted via UEFI or BIOS
+echo "${ROOT_PREFIX}/sys/firmware/efi"
+if [[ -d "${ROOT_PREFIX}"/sys/firmware/efi ]]; then
+    UEFI_MODE=1
+    (( "${VERBOSE}" == 1 )) && echo "System booted using UEFI"
+else
+    UEFI_MODE=0
+    (( "${VERBOSE}" == 1 )) && echo "System booted using BIOS"
+fi
+
 KERNEL_MAJOR_VER_MIN=5
-KERNEL_MINOR_VER_MIN=12
+KERNEL_MINOR_VER_MIN=15
 KERNEL_VER_MIN_STR=${KERNEL_MAJOR_VER_MIN}.${KERNEL_MINOR_VER_MIN}
 
 # Check if the system is running Linux
@@ -363,9 +373,10 @@ fi
 # Set up the distro information
 which_linux LINUX_DISTRO_STR LINUX_DISTRO
 (( "${VERBOSE}" == 1 )) && echo "Detected ${LINUX_DISTRO_STR}"
-if (( "${STRICT}" == 1 )); then
-    if [ "${LINUX_DISTRO}" != ubuntu -a "${LINUX_DISTRO}" != fedora ]; then
-        echo "Must be running one of Fedora or Ubuntu, exiting"
+if [ "${LINUX_DISTRO}" != ubuntu -a "${LINUX_DISTRO}" != fedora ]; then
+    echo "Warning - Running one of Fedora Core (version 36 or later) or Ubuntu"
+    echo "          (version 22.04 LTS or later) is suggested"
+    if (( "${STRICT}" == 1 )); then
         exit 1
     fi
 fi
@@ -373,7 +384,7 @@ fi
 # Check if the kernel meets the minimum version requirement
 min_kernel_ver "${KERNEL_MAJOR_VER_MIN}" "${KERNEL_MINOR_VER_MIN}"
 if [ $? -ne 0 ]; then
-    echo "Minimum kernel version requirement not met:"
+    echo "Minimum kernel version requirement not met - $(uname -r) vs. ${KERNEL_VER_MIN_STR}"
     exit 1
 else
     (( "${VERBOSE}" == 1 )) && echo "Minimum kernel version requirement met - $(uname -r) vs. ${KERNEL_VER_MIN_STR}"
@@ -383,34 +394,66 @@ fi
 KERN_VER=$(uname -r)
 KERN_CFG=${ROOT_PREFIX}/boot/config-${KERN_VER}
 if [[ ! -f ${KERN_CFG} ]]; then
-    echo "Kernel boot configuraiton not in known location, expected ${KERN_CFG}"
-    echo "    The kernel compile options are unknown"
-    exit 1
+    echo "Kernel compile configuration not in known location, expected ${KERN_CFG}"
+    echo "    The kernel compile options are unknown."
+    KERN_CFG_KNOWN=0
+    if (( "${STRICT}" == 1 )); then
+        exit 1
+    fi
 else
     (( "${VERBOSE}" == 1 )) && echo "Kernel boot configuration located (${KERN_CFG})"
+    KERN_CFG_KNOWN=1
 fi
 
-# Check to see whether we booted via UEFI or BIOS
-
-if [[ ! -d "${ROOT_PREFIX}"/sys/firmware/efi ]]; then
-    UEFI_MODE=1
-    (( "${VERBOSE}" == 1 )) && echo "System booted using UEFI"
-else
-    UEFI_MODE=0
-    (( "${VERBOSE}" == 1 )) && echo "System booted using BIOS"
-fi
+CXLSTAT_MAILBOX_ENABLED=0
+CXLSTAT_MAILBOX_RAW_ENABLED=0
 
 # Attempt to obtain CXL options
 declare -A CXL_OPTIONS
 get_kernel_cxl_options "${KERN_CFG}"
 if (( "${VERBOSE}" == 1 )) ; then
-    if [[ "${CXL_OPTIONS[CONFIG_CXL_MEM_RAW_COMMANDS]}" == y ||
-          "${CXL_OPTIONS[CONFIG_CXL_MEM_RAW_COMMANDS]}" == m ]] ; then
-        echo "Standard and vendor-specific CXL mailbox commands may be used"
+    if [[ "${CXL_OPTIONS[CONFIG_CXL_MEM]}" == y ||
+          "${CXL_OPTIONS[CONFIG_CXL_MEM]}" == m ]] ; then
+        CXLSTAT_MAILBOX_ENABLED=1
+        if [[ "${CXL_OPTIONS[CONFIG_CXL_MEM_RAW_COMMANDS]}" == y ||
+              "${CXL_OPTIONS[CONFIG_CXL_MEM_RAW_COMMANDS]}" == m ]] ; then
+            CXLSTAT_MAILBOX_RAW_ENABLED=1
+            echo "Standard and vendor-specific CXL mailbox commands may be used"
+        else
+            echo "Standard CXL mailbox commands may be used"
+        fi
     else
-        echo "Only standard CXL mailbox commands may be used"
+        echo "No apparent support for CXL mailbox commands"
     fi
 fi
+
+# At this point we know we're running some variation of the minimum kernel version and
+# we may know whether the kernel was configured with CXL support. Next we attempt to
+# determine whether the kernel appears to actually be running with CXL support.
+
+declare -A CXL_DEVICES
+CXL_SYSFS_ROOT=/sys/bus/cxl
+if [[ -d ${CXL_SYSFS_ROOT} && -d ${CXL_SYSFS_ROOT}/devices ]]; then
+    num_devices=$(ls ${CXL_SYSFS_ROOT}/devices | wc -l)
+    if (( "${num_devices}" != 1 )) ; then
+        echo "Error, more than one CXL memory device appears to be present."
+        exit 1
+    fi
+    # for device_info in $(ls -l ${CXL_SYSFS_ROOT}/devices) ; do
+    #     read -ra __cxl_stat_tmp_array <<<${device_info}
+    #     if (( ${#__cxl_stat_tmp_array[@]} == 11 )) ; then
+    #         __cxlstat_dev=${__cxl_stat_tmp_array[8]}
+    #         __cxlstat_pcie_dev=${__cxl_stat_tmp_array[10]}
+    #         CXL_DEVICES["${__cxlstat_dev}"]="${__cxlstat_pcie_dev}"
+    #     else
+    #         echo "Device listing in ${CXL_SYSFS_ROOT}/devices in unknown format: ${device_info}"
+    #     fi
+    # done
+fi
+
+DAXCTL_MAJ_VER_MIN=74
+DAXCTL_MIN_VER_MIN=0
+DAXCTL_VER_MIN="${DAXCTL_MAJ_VER_MIN}.${DAXCTL_MIN_VER_MIN}"
 
 if [[ "${LINUX_DISTRO}" == ubuntu ]]; then
     deb_package_check daxctll DAXCTL_PRESENT DAXCTL_MAJOR_VER DAXCTL_MINOR_VER DAXCTL_UPGRADABLE
@@ -418,10 +461,24 @@ else
     rpm_package_check daxctl DAXCTL_PRESENT DAXCTL_MAJOR_VER DAXCTL_MINOR_VER DAXCTL_UPGRADABLE
 fi
 
+echo
 if (( "${DAXCTL_PRESENT}" == 0 )) ; then
-    echo "The package daxctl does not appear to be installed. Please install the latest version."
+    echo "Package daxctl does not appear to be installed. Please install the latest"
+    echo "version or at least version ${DAXCTL_VER_MIN}. If not available then compile from"
+    echo "source."
 else
-    echo "daxctl version: ${DAXCTL_MAJOR_VER}.${DAXCTL_MINOR_VER}"
+    if version_gte "${DAXCTL_MAJOR_VER}" "${DAXCTL_MINOR_VER}" "${DAXCTL_MAJ_VER_MIN}" "${DAXCTL_MIN_VER_MIN}" ; then
+        (( "${VERBOSE}" == 1 )) && echo "The package daxctl is installed and at a sufficient version."
+    else
+        echo "The package daxctl is installed but at a version that is too old."
+        if (( ${DAXCTL_UPGRADABLE} == 1 )) ; then
+            echo "The package daxctl can be upgraded, please upgrade and re-run ${0}."
+        else
+            echo "The package daxctl can't be upgraded, please compile and install daxctl"
+            echo "and re-run ${0}."
+        fi
+    fi
+    (( "${VERBOSE}" == 1 )) && echo "daxctl version: ${DAXCTL_MAJOR_VER}.${DAXCTL_MINOR_VER}"
 fi
 
 exit 0
