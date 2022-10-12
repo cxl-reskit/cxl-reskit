@@ -2,8 +2,11 @@
 
 VERBOSE=1
 STRICT=1
-
 ROOT_PREFIX=
+
+(( __KB = 1024 ))
+(( __MB = 1024 * 1024 ))
+(( __GB = 1024 * 1024 * 1024 ))
 
 # ------------------------------------------------------------------------------------------------
 # Utility Functions Start (db4de81e-a31e-491d-a9dc-17a3e63be914)
@@ -186,6 +189,50 @@ function get_kernel_cxl_options()
 }
 
 #
+# get_cxl_devce_info
+#
+# NOTE - This function relies on a global associative array called CXL_DEVICES
+#
+# This function finds the devices in /sys/bus/cxl and attempts to learn everything
+# it can about them.
+#
+function get_cxl_device_info()
+{
+    local device_entries
+    local device_entry
+    local tmp_array
+    local module_name
+    local module_pcie_dev
+    local pcie_link_string
+
+    CXL_SYSFS_ROOT=/sys/bus/cxl
+    if [[ -d ${CXL_SYSFS_ROOT} && -x ${CXL_SYSFS_ROOT}/devices ]]; then
+        devices_entries=$(ls -l ${CXL_SYSFS_ROOT}/devices | tail -n +2)
+        while read -r device_entry; do
+            read -ra tmp_array <<<${device_entry}
+            if (( ${#tmp_array[@]} == 11 )) ; then
+                module_name=${tmp_array[8]}
+                pcie_link_string=${tmp_array[10]}
+                if [[ ${pcie_link_string} =~ ../../../devices/[^/]+/([^/]+)/([[:alnum:]]+) ]] ; then
+                    module_pcie_dev=${BASH_REMATCH[1]}
+                else
+                    echo "Warning - CXL device detected with an unrecognized PCIe device link:"
+                    echo "              ${pcie_link_string}"
+                    echo "          Device will be ignored."
+                    continue
+                fi
+                CXL_DEVICES["${module_name}"]="${module_pcie_dev}"
+            else
+                echo "Warning - Device listing in ${CXL_SYSFS_ROOT}/devices in unknown format:"
+                echo "              ${device_entry}"
+                echo "          Device will be ignored."
+                continue
+            fi
+        done <<< "${devices_entries}"
+    fi
+}
+
+#
 # deb_package_check
 #     package_name       : in
 #     package_installed  : out
@@ -265,9 +312,9 @@ function rpm_check_upgradable()
     local tmp_minor_ver
     local version
 
-    for version in $(dnf -q --showduplicates list --available  "${package_nm}" | \
-                       grep "${package_nm}" 2>&1                               | \
-                       tr -s " "                                               | \
+    for version in $(dnf -C -q --showduplicates list --available  "${package_nm}" | \
+                       grep "${package_nm}" 2>&1                                  | \
+                       tr -s " "                                                  | \
                        cut -d ' ' -f 2)
     do
         version_to_major_minor "${version}" tmp_major_ver tmp_minor_ver
@@ -349,8 +396,20 @@ function rpm_package_check()
 #
 # ------------------------------------------------------------------------------------------------
 
+#
+# Check if the system is running Linux
+#
+on_linux
+if [ $? -ne 0 ]; then
+    echo "${0} is only supported on Linux, exiting"
+    exit 1
+fi
+
+
+#
 # Check to see whether we booted via UEFI or BIOS
-echo "${ROOT_PREFIX}/sys/firmware/efi"
+#
+
 if [[ -d "${ROOT_PREFIX}"/sys/firmware/efi ]]; then
     UEFI_MODE=1
     (( "${VERBOSE}" == 1 )) && echo "System booted using UEFI"
@@ -359,16 +418,14 @@ else
     (( "${VERBOSE}" == 1 )) && echo "System booted using BIOS"
 fi
 
+
+#
+# Vet the OS installation and kernel version
+#
+
 KERNEL_MAJOR_VER_MIN=5
 KERNEL_MINOR_VER_MIN=15
 KERNEL_VER_MIN_STR=${KERNEL_MAJOR_VER_MIN}.${KERNEL_MINOR_VER_MIN}
-
-# Check if the system is running Linux
-on_linux
-if [ $? -ne 0 ]; then
-    echo "${0} is only supported on Linux, exiting"
-    exit 1
-fi
 
 # Set up the distro information
 which_linux LINUX_DISTRO_STR LINUX_DISTRO
@@ -382,74 +439,39 @@ if [ "${LINUX_DISTRO}" != ubuntu -a "${LINUX_DISTRO}" != fedora ]; then
 fi
 
 # Check if the kernel meets the minimum version requirement
+MIN_KERNEL_VER_MET=0
 min_kernel_ver "${KERNEL_MAJOR_VER_MIN}" "${KERNEL_MINOR_VER_MIN}"
 if [ $? -ne 0 ]; then
-    echo "Minimum kernel version requirement not met - $(uname -r) vs. ${KERNEL_VER_MIN_STR}"
-    exit 1
+    echo "Warning - Minimum kernel version requirement not met. Currently running"
+    echo "          kernel version $(uname -r) while a kernel of at least version"
+    echo "          ${KERNEL_VER_MIN_STR} is recommended"
 else
+    MIN_KERNEL_VER_MET=1
     (( "${VERBOSE}" == 1 )) && echo "Minimum kernel version requirement met - $(uname -r) vs. ${KERNEL_VER_MIN_STR}"
 fi
 
-# Set kernel version and check for kernel boot configuration
+# Check for kernel boot configuration
 KERN_VER=$(uname -r)
 KERN_CFG=${ROOT_PREFIX}/boot/config-${KERN_VER}
+KERNEL_CFG_KNOWN=0
 if [[ ! -f ${KERN_CFG} ]]; then
     echo "Kernel compile configuration not in known location, expected ${KERN_CFG}"
     echo "    The kernel compile options are unknown."
-    KERN_CFG_KNOWN=0
     if (( "${STRICT}" == 1 )); then
         exit 1
     fi
 else
     (( "${VERBOSE}" == 1 )) && echo "Kernel boot configuration located (${KERN_CFG})"
-    KERN_CFG_KNOWN=1
+    KERNEL_CFG_KNOWN=1
 fi
 
-CXLSTAT_MAILBOX_ENABLED=0
-CXLSTAT_MAILBOX_RAW_ENABLED=0
+#
+# Vet available packages
+#
+# Currently we are only looking for daxctl
+#
 
-# Attempt to obtain CXL options
-declare -A CXL_OPTIONS
-get_kernel_cxl_options "${KERN_CFG}"
-if (( "${VERBOSE}" == 1 )) ; then
-    if [[ "${CXL_OPTIONS[CONFIG_CXL_MEM]}" == y ||
-          "${CXL_OPTIONS[CONFIG_CXL_MEM]}" == m ]] ; then
-        CXLSTAT_MAILBOX_ENABLED=1
-        if [[ "${CXL_OPTIONS[CONFIG_CXL_MEM_RAW_COMMANDS]}" == y ||
-              "${CXL_OPTIONS[CONFIG_CXL_MEM_RAW_COMMANDS]}" == m ]] ; then
-            CXLSTAT_MAILBOX_RAW_ENABLED=1
-            echo "Standard and vendor-specific CXL mailbox commands may be used"
-        else
-            echo "Standard CXL mailbox commands may be used"
-        fi
-    else
-        echo "No apparent support for CXL mailbox commands"
-    fi
-fi
-
-# At this point we know we're running some variation of the minimum kernel version and
-# we may know whether the kernel was configured with CXL support. Next we attempt to
-# determine whether the kernel appears to actually be running with CXL support.
-
-declare -A CXL_DEVICES
-CXL_SYSFS_ROOT=/sys/bus/cxl
-if [[ -d ${CXL_SYSFS_ROOT} && -d ${CXL_SYSFS_ROOT}/devices ]]; then
-    num_devices=$(ls ${CXL_SYSFS_ROOT}/devices | wc -l)
-    if (( "${num_devices}" != 1 )) ; then
-        echo "Error, more than one CXL memory device appears to be present."
-        exit 1
-    fi
-    # for device_info in $(ls -l ${CXL_SYSFS_ROOT}/devices) ; do
-    #     read -ra __cxl_stat_tmp_array <<<${device_info}
-    #     if (( ${#__cxl_stat_tmp_array[@]} == 11 )) ; then
-    #         __cxlstat_dev=${__cxl_stat_tmp_array[8]}
-    #         __cxlstat_pcie_dev=${__cxl_stat_tmp_array[10]}
-    #         CXL_DEVICES["${__cxlstat_dev}"]="${__cxlstat_pcie_dev}"
-    #     else
-    #         echo "Device listing in ${CXL_SYSFS_ROOT}/devices in unknown format: ${device_info}"
-    #     fi
-    # done
-fi
+DAXCTL_USABLE=0
 
 DAXCTL_MAJ_VER_MIN=74
 DAXCTL_MIN_VER_MIN=0
@@ -468,6 +490,7 @@ if (( "${DAXCTL_PRESENT}" == 0 )) ; then
     echo "source."
 else
     if version_gte "${DAXCTL_MAJOR_VER}" "${DAXCTL_MINOR_VER}" "${DAXCTL_MAJ_VER_MIN}" "${DAXCTL_MIN_VER_MIN}" ; then
+        DAXCTL_USABLE=1
         (( "${VERBOSE}" == 1 )) && echo "The package daxctl is installed and at a sufficient version."
     else
         echo "The package daxctl is installed but at a version that is too old."
@@ -479,6 +502,101 @@ else
         fi
     fi
     (( "${VERBOSE}" == 1 )) && echo "daxctl version: ${DAXCTL_MAJOR_VER}.${DAXCTL_MINOR_VER}"
+fi
+
+
+#
+# CXL device checks
+#
+
+declare -A CXL_DEVICES
+get_cxl_device_info
+
+echo -e "\nDetecting CXL devices ..."
+for device in ${!CXL_DEVICES[@]} ; do
+    address="${CXL_DEVICES[${device}]}"
+    vendor=
+    device_id=
+    lspci_begin_line=$(lspci -D -mm -vv | grep -n ${CXL_DEVICES[${device}]} | cut -d : -f 1)
+    lspci_block=$(lspci -D -mm -vv | tail -n +${lspci_begin_line} | sed '/^$/Q')
+    while read -r lspci_field; do
+        label=$(echo "${lspci_field}" | cut -d : -f 1 | tr -d " " )
+        value=$(echo "${lspci_field}" | cut -d : -f 2 | tr -d "\t" | sed -r 's/^( )//g')
+        if [[ "${label}" == Class && "${value}" != CXL ]] ; then
+            echo "Warning - Apparent device class mismatch for ${device}, expected CXL. Got"
+            echo "          ${value}"
+        fi
+        if [[ "${label}" == Vendor ]] ; then
+            vendor="${value}"
+        fi
+        if [[ "${label}" == Device ]] ; then
+            device_id="${value}"
+        fi
+    done <<< "${lspci_block}"
+
+    device_size="<unknown>"
+    if [[ "${CXL_DEVICES[${device}]}" =~ ([[:alnum:]]+):([[:alnum:]]+): ]] ; then
+        pcie_group="${BASH_REMATCH[1]}"
+        pcie_devid="${BASH_REMATCH[2]}"
+        size_file="/sys/devices/pci${pcie_group}:${pcie_devid}/${address}/${device}/ram/size"
+        if [[ -f "${size_file}" && -r "${size_file}" ]] ; then
+            device_size=$(cat "${size_file}")
+        fi
+    fi
+
+    if [[ "${device_size}" != "<unknown>" ]] ; then
+        (( device_size = (device_size / __GB) ))
+    fi
+
+    echo -e "            CXL Device : ${device}"
+    echo -e "                Vendor : ${vendor}"
+    echo -e "             Device ID : ${device_id}"
+    echo -e "               Address : ${CXL_DEVICES[${device}]}"
+    echo -e "                  Size : ${device_size} GB"
+    echo -ne "       Mailbox Present : "
+
+    if [[ -c "/dev/cxl/${device}" ]] ; then
+        echo -e "yes"
+    else
+        echo -e "no"
+    fi
+    echo -e ""
+done
+
+
+#
+# DAX device checks
+#
+#if (( "${DAXCTL_USABLE}" == 1 )); then
+#
+#fi
+
+# At this point we know we're running some variation of the minimum kernel version and
+# we may know whether the kernel was configured with CXL support. Next we attempt to
+# determine whether the kernel appears to actually be running with CXL support.
+
+CXLSTAT_MAILBOX_ENABLED=0
+CXLSTAT_MAILBOX_RAW_ENABLED=0
+
+# Attempt to obtain CXL options
+declare -A CXL_OPTIONS
+get_kernel_cxl_options "${KERN_CFG}"
+
+echo
+if (( "${VERBOSE}" == 1 )) ; then
+    if [[ "${CXL_OPTIONS[CONFIG_CXL_MEM]}" == y ||
+          "${CXL_OPTIONS[CONFIG_CXL_MEM]}" == m ]] ; then
+        CXLSTAT_MAILBOX_ENABLED=1
+        if [[ "${CXL_OPTIONS[CONFIG_CXL_MEM_RAW_COMMANDS]}" == y ||
+              "${CXL_OPTIONS[CONFIG_CXL_MEM_RAW_COMMANDS]}" == m ]] ; then
+            CXLSTAT_MAILBOX_RAW_ENABLED=1
+            echo "Standard and vendor-specific CXL mailbox commands may be used"
+        else
+            echo "Standard CXL mailbox commands may be used"
+        fi
+    else
+        echo "No clear kernel support for CXL devices"
+    fi
 fi
 
 exit 0
