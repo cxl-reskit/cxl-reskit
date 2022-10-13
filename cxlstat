@@ -189,7 +189,7 @@ function get_kernel_cxl_options()
 }
 
 #
-# get_cxl_devce_info
+# get_cxl_device_info
 #
 # NOTE - This function relies on a global associative array called CXL_DEVICES
 #
@@ -230,6 +230,141 @@ function get_cxl_device_info()
             fi
         done <<< "${devices_entries}"
     fi
+}
+
+#
+# print_cxl_device_info
+#
+# NOTE - This function relies on a global associative array called CXL_DEVICES
+#
+# This function uses the information that get_cxl_defice_info populated in
+# and prints out information it can find can about them using lspci.
+#
+function print_cxl_device_info()
+{
+    for device in ${!CXL_DEVICES[@]} ; do
+        address="${CXL_DEVICES[${device}]}"
+        vendor=
+        device_id=
+        lspci_begin_line=$(lspci -D -mm -vv | grep -n ${CXL_DEVICES[${device}]} | cut -d : -f 1)
+        lspci_block=$(lspci -D -mm -vv | tail -n +${lspci_begin_line} | sed '/^$/Q')
+        while read -r lspci_field; do
+            label=$(echo "${lspci_field}" | cut -d : -f 1 | tr -d " " )
+            value=$(echo "${lspci_field}" | cut -d : -f 2 | tr -d "\t" | sed -r 's/^( )//g')
+            if [[ "${label}" == Class && "${value}" != CXL ]] ; then
+                echo "Warning - Apparent device class mismatch for ${device}, expected CXL. Got"
+                echo "          ${value}"
+            fi
+            if [[ "${label}" == Vendor ]] ; then
+                vendor="${value}"
+            elif [[ "${label}" == Device ]] ; then
+                device_id="${value}"
+            fi
+        done <<< "${lspci_block}"
+
+        device_size="<unknown>"
+        if [[ "${CXL_DEVICES[${device}]}" =~ ([[:alnum:]]+):([[:alnum:]]+): ]] ; then
+            pcie_group="${BASH_REMATCH[1]}"
+            pcie_devid="${BASH_REMATCH[2]}"
+            size_file="/sys/devices/pci${pcie_group}:${pcie_devid}/${address}/${device}/ram/size"
+            if [[ -f "${size_file}" && -r "${size_file}" ]] ; then
+                device_size=$(cat "${size_file}")
+            fi
+        fi
+
+        if [[ "${device_size}" != "<unknown>" ]] ; then
+            (( device_size = (device_size / __GB) ))
+        fi
+
+        echo -e "            CXL Device : ${device}"
+        echo -e "                Vendor : ${vendor}"
+        echo -e "             Device ID : ${device_id}"
+        echo -e "               Address : ${CXL_DEVICES[${device}]}"
+        echo -e "                  Size : ${device_size} GB"
+        echo -ne "       Mailbox Present : "
+
+        if [[ -c "/dev/cxl/${device}" ]] ; then
+            echo -e "yes"
+        else
+            echo -e "no"
+        fi
+    done
+}
+
+#
+# get_dax_device_names
+#
+# NOTE - This function relies on a global array called DAX_DEVICES
+#
+# This function finds DAX devices present in the system and populates the
+# DAX_DEVICES array with their names.
+#
+function get_dax_device_names()
+{
+    for name in $(ls /dev/dax*) ; do
+        DAX_DEVICES+=("${name}")
+    done
+}
+
+#
+# print_dax_device_info
+#
+# NOTE - This function relies on a global associative array called CXL_DEVICES
+#
+# This function uses the information that get_cxl_defice_info populated in
+# and prints out information it can find can about them using lspci.
+#
+function print_dax_device_info()
+{
+    local tmpfile
+    local field
+    local chardev
+    local size="<unknown>"
+    local mode
+
+    if ! tmpfile=$(mktemp /tmp/cxlstat.XXXXXXXXXXXXXXXX); then
+        echo "Error creating temporary file to hold output from daxctl list"
+        return 1
+    fi
+
+    if ! daxctl list > ${tmpfile} ; then
+        echo "Error running daxctl list"
+        return 1
+    fi
+
+    for bracket_line in $(grep -n "{" < "${tmpfile}" | cut -d : -f 1) ; do
+        (( start_line = bracket_line + 1 ))
+        end_line=$(tail -n +${start_line} < "${tmpfile}" | grep -n "}" | cut -d : -f 1 | head -1)
+        (( end_line = end_line - 1 ))
+        device_data=$(tail -n +${start_line} < "${tmpfile}" | head -${end_line})
+
+        while read -r field; do
+            label=$(echo "${field}" | cut -d : -f 1 | tr -d " " | tr -d \")
+            value=$(echo "${field}" | cut -d : -f 2 | tr -d "," | tr -d \")
+
+            if [[ "${label}" == "chardev" ]] ; then
+                chardev="${value}"
+            elif [[ "${label}" == "size" ]] ; then
+                size="${value}"
+            elif [[ "${label}" == "mode" ]] ; then
+                mode="${value}"
+            fi
+        done <<< "${device_data}"
+
+        if [[ "${size}" != "<unknown>" ]] ; then
+            (( size = (size / __GB) ))
+        fi
+
+        echo -e "            DAX Device : ${chardev}"
+        echo -e "                  Size : ${size} GB"
+        if [[ "${mode}" == "devdax" ]] ; then
+            echo -e "                  Mode : ${mode} (memory directly usable only via DAX access)"
+        else
+            echo -e "                  Mode : ${mode} (memory directly usable via numactl)"
+        fi
+    done
+
+    rm "${tmpfile}"
 }
 
 #
@@ -473,8 +608,8 @@ fi
 
 DAXCTL_USABLE=0
 
-DAXCTL_MAJ_VER_MIN=74
-DAXCTL_MIN_VER_MIN=0
+DAXCTL_MAJ_VER_MIN=72
+DAXCTL_MIN_VER_MIN=1
 DAXCTL_VER_MIN="${DAXCTL_MAJ_VER_MIN}.${DAXCTL_MIN_VER_MIN}"
 
 if [[ "${LINUX_DISTRO}" == ubuntu ]]; then
@@ -509,67 +644,33 @@ fi
 # CXL device checks
 #
 
+echo -e "\nDetecting CXL devices ..."
+
 declare -A CXL_DEVICES
 get_cxl_device_info
-
-echo -e "\nDetecting CXL devices ..."
-for device in ${!CXL_DEVICES[@]} ; do
-    address="${CXL_DEVICES[${device}]}"
-    vendor=
-    device_id=
-    lspci_begin_line=$(lspci -D -mm -vv | grep -n ${CXL_DEVICES[${device}]} | cut -d : -f 1)
-    lspci_block=$(lspci -D -mm -vv | tail -n +${lspci_begin_line} | sed '/^$/Q')
-    while read -r lspci_field; do
-        label=$(echo "${lspci_field}" | cut -d : -f 1 | tr -d " " )
-        value=$(echo "${lspci_field}" | cut -d : -f 2 | tr -d "\t" | sed -r 's/^( )//g')
-        if [[ "${label}" == Class && "${value}" != CXL ]] ; then
-            echo "Warning - Apparent device class mismatch for ${device}, expected CXL. Got"
-            echo "          ${value}"
-        fi
-        if [[ "${label}" == Vendor ]] ; then
-            vendor="${value}"
-        fi
-        if [[ "${label}" == Device ]] ; then
-            device_id="${value}"
-        fi
-    done <<< "${lspci_block}"
-
-    device_size="<unknown>"
-    if [[ "${CXL_DEVICES[${device}]}" =~ ([[:alnum:]]+):([[:alnum:]]+): ]] ; then
-        pcie_group="${BASH_REMATCH[1]}"
-        pcie_devid="${BASH_REMATCH[2]}"
-        size_file="/sys/devices/pci${pcie_group}:${pcie_devid}/${address}/${device}/ram/size"
-        if [[ -f "${size_file}" && -r "${size_file}" ]] ; then
-            device_size=$(cat "${size_file}")
-        fi
-    fi
-
-    if [[ "${device_size}" != "<unknown>" ]] ; then
-        (( device_size = (device_size / __GB) ))
-    fi
-
-    echo -e "            CXL Device : ${device}"
-    echo -e "                Vendor : ${vendor}"
-    echo -e "             Device ID : ${device_id}"
-    echo -e "               Address : ${CXL_DEVICES[${device}]}"
-    echo -e "                  Size : ${device_size} GB"
-    echo -ne "       Mailbox Present : "
-
-    if [[ -c "/dev/cxl/${device}" ]] ; then
-        echo -e "yes"
-    else
-        echo -e "no"
-    fi
-    echo -e ""
-done
+print_cxl_device_info
 
 
 #
 # DAX device checks
 #
-#if (( "${DAXCTL_USABLE}" == 1 )); then
-#
-#fi
+
+echo -e "\nDetecting DAX devices ..."
+
+declare -a DAX_DEVICES
+get_dax_device_names
+print_dax_device_info
+
+
+if (( "${DAXCTL_PRESENT}" == 1 )); then
+    if (( "${DAXCTL_USABLE}" == 1 )); then
+        echo -e ""
+        echo "The daxctl command appears usable for all normal functions."
+    else
+        echo -e ""
+        echo "The daxctl command may not be usable."
+    fi
+fi
 
 # At this point we know we're running some variation of the minimum kernel version and
 # we may know whether the kernel was configured with CXL support. Next we attempt to
@@ -590,9 +691,9 @@ if (( "${VERBOSE}" == 1 )) ; then
         if [[ "${CXL_OPTIONS[CONFIG_CXL_MEM_RAW_COMMANDS]}" == y ||
               "${CXL_OPTIONS[CONFIG_CXL_MEM_RAW_COMMANDS]}" == m ]] ; then
             CXLSTAT_MAILBOX_RAW_ENABLED=1
-            echo "Standard and vendor-specific CXL mailbox commands may be used"
+            echo "Standard and vendor-specific CXL mailbox commands may be used."
         else
-            echo "Standard CXL mailbox commands may be used"
+            echo "Standard CXL mailbox commands may be used (no vendor-specific commands allowed)."
         fi
     else
         echo "No clear kernel support for CXL devices"
