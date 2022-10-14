@@ -208,6 +208,9 @@ function get_cxl_device_info()
 
     CXL_SYSFS_ROOT=/sys/bus/cxl
     if [[ -d ${CXL_SYSFS_ROOT} && -x ${CXL_SYSFS_ROOT}/devices ]]; then
+        if [[ $(ls "${CXL_SYSFS_ROOT}/devices" | wc -l) == 0 ]] ; then
+            return 0
+        fi
         devices_entries=$(ls -l ${CXL_SYSFS_ROOT}/devices | tail -n +2)
         while read -r device_entry; do
             read -ra tmp_array <<<"${device_entry}"
@@ -244,6 +247,11 @@ function get_cxl_device_info()
 #
 function print_cxl_device_info()
 {
+    if [[ "${#CXL_DEVICES[@]}" == 0 ]] ; then
+        echo -e "          No devices found"
+        return 0
+    fi
+
     for device in "${!CXL_DEVICES[@]}" ; do
         address="${CXL_DEVICES[${device}]}"
         vendor=
@@ -303,9 +311,13 @@ function print_cxl_device_info()
 #
 function get_dax_device_names()
 {
-    for name in $(ls /dev/dax*) ; do
-        DAX_DEVICES+=("${name}")
-    done
+    local name
+
+    while read -r name ; do
+        if [[ ! -z "${name}" ]] ; then
+            DAX_DEVICES+=("${name}")
+        fi
+    done <<< $(find /dev -name dax\*)
 }
 
 #
@@ -328,6 +340,11 @@ function print_dax_device_info()
     local mem_top
     local mem_range
     local mem_range_known=0
+
+    if [[ "${#DAX_DEVICES[@]}" == 0 ]] ; then
+        echo -e "          No devices found"
+        return 0
+    fi
 
     if (( "${DAXCTL_PRESENT}" == 0 )); then
         for chardev in "${DAX_DEVICES[@]}" ; do
@@ -664,9 +681,11 @@ else
     if version_gte "${DAXCTL_MAJOR_VER}" "${DAXCTL_MINOR_VER}"     \
                    "${DAXCTL_MAJ_VER_MIN}" "${DAXCTL_MIN_VER_MIN}" ; then
         DAXCTL_USABLE=1
-        (( "${VERBOSE}" == 1 )) && echo "The package daxctl is installed and at a sufficient version."
+        echo -n "The package daxctl is installed and at a sufficient version "
+        echo    "(found ${DAXCTL_MAJOR_VER}.${DAXCTL_MINOR_VER})"
     else
-        echo "The package daxctl is installed but at a version that is too old."
+        echo -n "The package daxctl is installed but at a version that is too old "
+        echo    "(found ${DAXCTL_MAJOR_VER}.${DAXCTL_MINOR_VER})"
         if (( DAXCTL_UPGRADABLE == 1 )) ; then
             echo "The package daxctl can be upgraded, please upgrade and re-run ${0}."
         else
@@ -674,7 +693,6 @@ else
             echo "and re-run ${0}."
         fi
     fi
-    (( "${VERBOSE}" == 1 )) && echo "daxctl version: ${DAXCTL_MAJOR_VER}.${DAXCTL_MINOR_VER}"
 fi
 
 
@@ -695,7 +713,7 @@ print_cxl_device_info
 
 echo -e "\nDetecting DAX devices ..."
 
-declare -a DAX_DEVICES
+declare -a DAX_DEVICES=()
 get_dax_device_names
 print_dax_device_info
 
