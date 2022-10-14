@@ -22,7 +22,7 @@ ROOT_PREFIX=
 #
 function on_linux()
 {
-    if [ "$(uname | tr [:upper:] [:lower:])" = "linux" ]; then
+    if [[ "$(uname | tr '[:upper:]' '[:lower:]')" == "linux" ]]; then
         return 0
     else
         return 1
@@ -46,7 +46,7 @@ function which_linux()
 
     if [[ -f "${ROOT_PREFIX}"/etc/os-release ]]; then
         __wl_hd=$(awk -F= '/^NAME/{print $2}' "${ROOT_PREFIX}"/etc/os-release | tr -d \")
-        __wl_md=$( echo "${__wl_hd}" | cut -d ' ' -f 1 | tr [:upper:] [:lower:] )
+        __wl_md=$( echo "${__wl_hd}" | cut -d ' ' -f 1 | tr '[:upper:]' '[:lower:]' )
     else
         __wl_hd=unknown
         __wl_md=unknown
@@ -168,7 +168,7 @@ function min_kernel_ver()
 function get_kernel_cxl_options()
 {
     local config=${1}
-    local setting
+    local tmp
 
     CXL_OPTIONS[CONFIG_CXL_BUS]=""
     CXL_OPTIONS[CONFIG_CXL_PCI]=""
@@ -180,8 +180,9 @@ function get_kernel_cxl_options()
     CXL_OPTIONS[CONFIG_CXL_REGION]=""
 
     if [[ -f "${config}" && -r "${config}" ]]; then
-        while read setting; do
-            if [[ "${setting}" =~ (CONFIG_CXL_[[:alpha:]_]+)[[:space:]]*=[[:space:]]*([[:alnum:]]+) ]] ; then
+        while read -r tmp; do
+            if [[ "${tmp}" =~ (CONFIG_CXL_[[:alpha:]_]+)[[:space:]]*=[[:space:]]*([[:alnum:]]+) ]]
+            then
                 CXL_OPTIONS[${BASH_REMATCH[1]}]=${BASH_REMATCH[2]}
             fi
         done < <(grep CONFIG_CXL "${config}")
@@ -209,11 +210,12 @@ function get_cxl_device_info()
     if [[ -d ${CXL_SYSFS_ROOT} && -x ${CXL_SYSFS_ROOT}/devices ]]; then
         devices_entries=$(ls -l ${CXL_SYSFS_ROOT}/devices | tail -n +2)
         while read -r device_entry; do
-            read -ra tmp_array <<<${device_entry}
+            read -ra tmp_array <<<"${device_entry}"
             if (( ${#tmp_array[@]} == 11 )) ; then
                 module_name=${tmp_array[8]}
                 pcie_link_string=${tmp_array[10]}
-                if [[ ${pcie_link_string} =~ ../../../devices/[^/]+/([^/]+)/([[:alnum:]]+) ]] ; then
+                if [[ ${pcie_link_string} =~ ../../../devices/[^/]+/([^/]+)/([[:alnum:]]+) ]]
+                then
                     module_pcie_dev=${BASH_REMATCH[1]}
                 else
                     echo "Warning - CXL device detected with an unrecognized PCIe device link:"
@@ -242,12 +244,12 @@ function get_cxl_device_info()
 #
 function print_cxl_device_info()
 {
-    for device in ${!CXL_DEVICES[@]} ; do
+    for device in "${!CXL_DEVICES[@]}" ; do
         address="${CXL_DEVICES[${device}]}"
         vendor=
         device_id=
-        lspci_begin_line=$(lspci -D -mm -vv | grep -n ${CXL_DEVICES[${device}]} | cut -d : -f 1)
-        lspci_block=$(lspci -D -mm -vv | tail -n +${lspci_begin_line} | sed '/^$/Q')
+        lspci_begin_line=$(lspci -D -mm -vv | grep -n "${CXL_DEVICES[${device}]}" | cut -d : -f 1)
+        lspci_block=$(lspci -D -mm -vv | tail -n +"${lspci_begin_line}" | sed '/^$/Q')
         while read -r lspci_field; do
             label=$(echo "${lspci_field}" | cut -d : -f 1 | tr -d " " )
             value=$(echo "${lspci_field}" | cut -d : -f 2 | tr -d "\t" | sed -r 's/^( )//g')
@@ -321,24 +323,37 @@ function print_dax_device_info()
     local chardev
     local size="<unknown>"
     local mode
+    local iomem_entry
+    local mem_base
+    local mem_top
+    local mem_range
+    local mem_range_known=0
+
+    if (( "${DAXCTL_PRESENT}" == 0 )); then
+        for chardev in "${DAX_DEVICES[@]}" ; do
+            echo -e "                  Name : ${chardev##*/}"
+            echo -e "                  Path : ${chardev}"
+        done
+        return 0
+    fi
 
     if ! tmpfile=$(mktemp /tmp/cxlstat.XXXXXXXXXXXXXXXX); then
         echo "Error creating temporary file to hold output from daxctl list"
         return 1
     fi
 
-    if ! daxctl list > ${tmpfile} ; then
+    if ! daxctl list > "${tmpfile}" ; then
         echo "Error running daxctl list"
         return 1
     fi
 
-    for bracket_line in $(grep -n "{" < "${tmpfile}" | cut -d : -f 1) ; do
+    while read -r bracket_line ; do
         (( start_line = bracket_line + 1 ))
-        end_line=$(tail -n +${start_line} < "${tmpfile}" | grep -n "}" | cut -d : -f 1 | head -1)
+        end_line=$(tail -n +"${start_line}" < "${tmpfile}" | grep -n "}" | cut -d : -f 1 | head -1)
         (( end_line = end_line - 1 ))
-        device_data=$(tail -n +${start_line} < "${tmpfile}" | head -${end_line})
+        device_data=$(tail -n +"${start_line}" < "${tmpfile}" | head -"${end_line}")
 
-        while read -r field; do
+        while read -r field ; do
             label=$(echo "${field}" | cut -d : -f 1 | tr -d " " | tr -d \")
             value=$(echo "${field}" | cut -d : -f 2 | tr -d "," | tr -d \")
 
@@ -355,14 +370,33 @@ function print_dax_device_info()
             (( size = (size / __GB) ))
         fi
 
-        echo -e "            DAX Device : ${chardev}"
+        if [[ $EUID == 0 ]] ; then
+            iomem_entry=$(grep "${chardev}" /proc/iomem)
+            if [[ "${iomem_entry}" =~ [[:space:]]*([[:alnum:]]+)-([[:alnum:]]+) ]] ; then
+                mem_base=$(echo "${BASH_REMATCH[1]}" | tr '[:lower:]' '[:upper:]')
+                mem_top=$(echo "${BASH_REMATCH[2]}" | tr '[:lower:]' '[:upper:]')
+                mem_range=$(echo "ibase=16; 1 + ${mem_top} - ${mem_base}" | bc)
+                (( mem_range = (mem_range / __GB) ))
+                mem_range_known=1
+            else
+                echo -e "Warning, unexpected format of /proc/iomem entry: ${iomem_entry}"
+            fi
+        fi
+
+        echo -e "                  Name : ${chardev}"
+        echo -e "                  Path : /dev/${chardev}"
         echo -e "                  Size : ${size} GB"
+        if (( mem_range_known == 1 )) ; then
+            echo -e "          Memory Range : 0x${mem_base}-0x${mem_top} (${mem_range} GB)"
+        else
+            echo -e "          Memory Range : UNKNOWN"
+        fi
         if [[ "${mode}" == "devdax" ]] ; then
             echo -e "                  Mode : ${mode} (memory directly usable only via DAX access)"
         else
             echo -e "                  Mode : ${mode} (memory directly usable via numactl)"
         fi
-    done
+    done <<< "$(grep -n \{ < ${tmpfile} | cut -d : -f 1)"
 
     rm "${tmpfile}"
 }
@@ -391,6 +425,7 @@ function deb_package_check()
     local __dpc_major_ver
     local __dpc_minor_ver
     local __dpc_upgradable
+    local __dpc_tmp
     
     if dpkg -s "${__dpc_package_nm}" > /dev/null 2>&1 ; then
         __dpc_installed=1
@@ -402,7 +437,7 @@ function deb_package_check()
     fi
 
     if (( "${__dpc_installed}" == 1 )); then
-        local __dpc_tmp=$(dpkg -s "${__dpc_package_nm}" | grep Version | cut -d ' ' -f 2)
+        __dpc_tmp=$(dpkg -s "${__dpc_package_nm}" | grep Version | cut -d ' ' -f 2)
         if [[ "${__dpc_tmp}" =~ ([0-9]+):(.*) ]] ; then
             # there is an epoch for the version, ignore it
             __dpc_tmp=${BASH_REMATCH[2]}
@@ -486,6 +521,7 @@ function rpm_package_check()
     local __rpc_major_ver
     local __rpc_minor_ver
     local __rpc_upgradable
+    local __rpc_tmp
 
     if rpm -q -s "${__rpc_package_nm}" > /dev/null 2>&1 ; then
         __rpc_installed=1
@@ -497,7 +533,7 @@ function rpm_package_check()
     fi
 
     if (( "${__rpc_installed}" == 1 )); then
-        local __rpc_tmp=$(rpm -q --queryformat '%{VERSION}' "${__rpc_package_nm}")
+        __rpc_tmp=$(rpm -q --queryformat '%{VERSION}' "${__rpc_package_nm}")
         if [[ "${__rpc_tmp}" =~ ([[:digit:]]+).([[:digit:]]+) ]] ; then
             __rpc_major_ver=${BASH_REMATCH[1]}
             __rpc_minor_ver=${BASH_REMATCH[2]}
@@ -506,7 +542,8 @@ function rpm_package_check()
             __rpc_minor_ver=0
         fi
 
-        if rpm_check_upgradable "${__rpc_package_nm}" "${__rpc_major_ver}" "${__rpc_minor_ver}" ; then
+        if rpm_check_upgradable "${__rpc_package_nm}" "${__rpc_major_ver}" "${__rpc_minor_ver}"
+        then
             __rpc_upgradable=1
         else
             __rpc_upgradable=0
@@ -534,8 +571,7 @@ function rpm_package_check()
 #
 # Check if the system is running Linux
 #
-on_linux
-if [ $? -ne 0 ]; then
+if ! on_linux ; then
     echo "${0} is only supported on Linux, exiting"
     exit 1
 fi
@@ -565,7 +601,7 @@ KERNEL_VER_MIN_STR=${KERNEL_MAJOR_VER_MIN}.${KERNEL_MINOR_VER_MIN}
 # Set up the distro information
 which_linux LINUX_DISTRO_STR LINUX_DISTRO
 (( "${VERBOSE}" == 1 )) && echo "Detected ${LINUX_DISTRO_STR}"
-if [ "${LINUX_DISTRO}" != ubuntu -a "${LINUX_DISTRO}" != fedora ]; then
+if [[ "${LINUX_DISTRO}" != ubuntu && "${LINUX_DISTRO}" != fedora ]]; then
     echo "Warning - Running one of Fedora Core (version 36 or later) or Ubuntu"
     echo "          (version 22.04 LTS or later) is suggested"
     if (( "${STRICT}" == 1 )); then
@@ -575,14 +611,15 @@ fi
 
 # Check if the kernel meets the minimum version requirement
 MIN_KERNEL_VER_MET=0
-min_kernel_ver "${KERNEL_MAJOR_VER_MIN}" "${KERNEL_MINOR_VER_MIN}"
-if [ $? -ne 0 ]; then
+
+if ! min_kernel_ver "${KERNEL_MAJOR_VER_MIN}" "${KERNEL_MINOR_VER_MIN}" ; then
     echo "Warning - Minimum kernel version requirement not met. Currently running"
     echo "          kernel version $(uname -r) while a kernel of at least version"
     echo "          ${KERNEL_VER_MIN_STR} is recommended"
 else
     MIN_KERNEL_VER_MET=1
-    (( "${VERBOSE}" == 1 )) && echo "Minimum kernel version requirement met - $(uname -r) vs. ${KERNEL_VER_MIN_STR}"
+    (( "${VERBOSE}" == 1 )) && \
+        echo "Minimum kernel version requirement met - $(uname -r) vs. ${KERNEL_VER_MIN_STR}"
 fi
 
 # Check for kernel boot configuration
@@ -613,7 +650,7 @@ DAXCTL_MIN_VER_MIN=1
 DAXCTL_VER_MIN="${DAXCTL_MAJ_VER_MIN}.${DAXCTL_MIN_VER_MIN}"
 
 if [[ "${LINUX_DISTRO}" == ubuntu ]]; then
-    deb_package_check daxctll DAXCTL_PRESENT DAXCTL_MAJOR_VER DAXCTL_MINOR_VER DAXCTL_UPGRADABLE
+    deb_package_check daxctl DAXCTL_PRESENT DAXCTL_MAJOR_VER DAXCTL_MINOR_VER DAXCTL_UPGRADABLE
 else
     rpm_package_check daxctl DAXCTL_PRESENT DAXCTL_MAJOR_VER DAXCTL_MINOR_VER DAXCTL_UPGRADABLE
 fi
@@ -624,12 +661,13 @@ if (( "${DAXCTL_PRESENT}" == 0 )) ; then
     echo "version or at least version ${DAXCTL_VER_MIN}. If not available then compile from"
     echo "source."
 else
-    if version_gte "${DAXCTL_MAJOR_VER}" "${DAXCTL_MINOR_VER}" "${DAXCTL_MAJ_VER_MIN}" "${DAXCTL_MIN_VER_MIN}" ; then
+    if version_gte "${DAXCTL_MAJOR_VER}" "${DAXCTL_MINOR_VER}"     \
+                   "${DAXCTL_MAJ_VER_MIN}" "${DAXCTL_MIN_VER_MIN}" ; then
         DAXCTL_USABLE=1
         (( "${VERBOSE}" == 1 )) && echo "The package daxctl is installed and at a sufficient version."
     else
         echo "The package daxctl is installed but at a version that is too old."
-        if (( ${DAXCTL_UPGRADABLE} == 1 )) ; then
+        if (( DAXCTL_UPGRADABLE == 1 )) ; then
             echo "The package daxctl can be upgraded, please upgrade and re-run ${0}."
         else
             echo "The package daxctl can't be upgraded, please compile and install daxctl"
