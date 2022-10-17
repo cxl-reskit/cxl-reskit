@@ -58,8 +58,6 @@ system configured with CXL memory, for example:
 - How can you run programs and benchmarks using your CXL memory?
 - Does your kernel contain CXL support, and is it enabled?
 
-More detailed documentation can be found by running cxlstat with the `--help` option.
-
 ```shell
 ./cxlstat
 ```
@@ -85,28 +83,26 @@ do so in your own scripts or programs.
 ## About Kernel Support for CXL Memory
 
 Linux supports CXL memory starting with the 5.12 kernel, though it continues to receive
-CXL-related fixes with each release.
+CXL-related updates with each release.
 
-By default, the kernel is built with the required options to support CXL memory. In particular,
-the `CXL_CONFIG_BUS` and `CXL_CONFIG_MEM` options are required and enabled by default.
+The kernels in the recommended distros are built with the required options to support CXL memory.
+In particular, as of 5.12, the `CXL_CONFIG_BUS` and `CXL_CONFIG_MEM` options are required.
 
 `cxlstat` checks your kernel config file (`` /boot/config-`uname -r` ``) to verify that your kernel
 supports CXL memory.
 
 ## About Raw Command Support
 
-Linux supports a limited number of opcodes defined in the CXL specification.
+Linux supports CXL mailbox commands defined in the CXL specification.
 However, unsupported commands may be required to use vendor specific features or perform a firmware
 upgrade on the device.
 
-A kernel built with the `CXL_MEM_RAW_COMMANDS` option allows unsupported commands
-(i.e. "raw commands") to be sent to the device. This is disabled by default, but the option exists
+A kernel built with the `CXL_MEM_RAW_COMMANDS` option allows allows vendor-specific CXL mailbox commands
+(i.e., "raw commands") to be sent to the device. This is disabled by default, but the option exists
 so that you can enable it in a custom kernel build.
 
 `cxlstat` checks your kernel config file (`` /boot/config-`uname -r` ``) to report whether the
 `CXL_MEM_RAW_COMMANDS` option is enabled or not.
-
-> TODO: do we need to bring in "mailbox" terminology at any point?
 
 ## About BIOS Support for Specific Purpose Memory
 
@@ -154,6 +150,8 @@ numactl --membind 2 <my app command line>
 
 More extensive documentation is available in the [tools](tools) subdirectory.
 
+> TODO: fix
+
 ## Testing CXL Memory
 
 The [benchmarks](benchmarks) subdirectory contains several tools for running microbenchmark workloads against
@@ -164,9 +162,5 @@ Usage documentation is in [benchmarks/README.md](benchmarks/README.md).
 
 ## Configuring CXL Memory
 
-The [tools](tools) subdirectory contains tools that you may need for configuration tasks.
-
-For example, you may need to build and install the latest version of [ndctl](tools/README.md#ndctl)
-when your distro's `daxctl` package is not new enough to contain sufficient CXL-related functionality.
-
-> TODO: Do we still need this?
+The [tools](tools) subdirectory contains tools that you may need for configuration tasks, and some
+examples of their usage.
