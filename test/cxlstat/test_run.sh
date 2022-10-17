@@ -1,10 +1,17 @@
 #!/bin/bash
 
+CXLSTAT=../../cxlstat
+
+if [[ ! -f "${CXLSTAT}" ]] ; then
+    echo "Test script can't locate cxlstat"
+    exit 1
+fi
+
 (( refresh_functions_file = 0 ))
 (( unit_test_count = 0 ))
 for unit_test in ./ut_*.sh ; do
     (( unit_test_count = unit_test_count + 1 ))
-    if [[ ../cxlstat -nt ${unit_test} ]] ; then
+    if [[ ../../cxlstat -nt ${unit_test} ]] ; then
         (( refresh_functions_file = 1 ))
     fi
 done
