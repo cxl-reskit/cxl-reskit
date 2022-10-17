@@ -1,18 +1,20 @@
 # cxl-reskit
 
-This is the top-level repository of the Micron CXL Memory Resource Kit (CMRK) - a collection of both documentation (how does CXL memory
-really work in a system) and tools (benchmarks, administrative and diagnostic tools) to make it easy to get
-started with CXL memory.
+This is the top-level repository of the CXL Memory Resource Kit (CMRK) - a collection of
+documentation, tools, and benchmarks for use with CXL memory.
 
-The CMRK comprises both original content and enhancements to external repositories.  We expect to grow the CMRK over time,
-in collaboration with the community, to help create a vibrant ecosystem for getting the most out of CXL memory.
+The CMRK comprises both original content and CXL-related enhancements to external projects
+that we plan to propose for inclusion in upstream where appropriate.
+We expect to continue adding to the CMRK over time, in collaboration with the community,
+to help create a vibrant software ecosystem for getting the most out of CXL memory.
 
-Rather than flattening the code from external repositories, we have sourced external repositories containing
-various tools. This makes it easy to see what was modified, while still supporting easy use of the external
-tools.  It also allows us to propose patches to upstream maintainers.
+When making CXL-related enhancements to external projects, we source those repositories rather
+than flattening the code.
+This makes it easy to see what was modified, while still supporting ease of use.
+It also allows us to propose patches to upstream maintainers.
 
-This code and documentation covers Linux usage and testing. Other operating systems are outside the current
-scope.
+The CMRK documentation and code is currently focused on Linux only.
+
 
 ## Recommended System Requirements
 
