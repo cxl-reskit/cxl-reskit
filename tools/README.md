@@ -21,87 +21,15 @@ The ndctl repository also provides a set of C libraries that correspond to each 
 
 ## MLC
 
-One valuable tool is the Memory Latency Checker (MLC) program from Intel. It is not
-open source, but can be freely downloaded from [this website](https://www.intel.com/content/www/us/en/developer/articles/tool/intelr-memory-latency-checker.html).
+One valuable tool for understanding memory performance is the Memory Latency Checker (MLC) program from Intel.
+It is not open source, but can be freely downloaded from
+[this website](https://www.intel.com/content/www/us/en/developer/articles/tool/intelr-memory-latency-checker.html).
+The `bootstrap.sh` script downloads it automatically.
 
-The bootstrap script downloads this tool automatically. It is required in order to run the examples that use `mlc`.
+To use MLC with CXL memory, it is necessary to have the device in System RAM mode.
+See [Converting Between Device DAX and System RAM Mode](../README.md#converting-between-device-dax-and-system-ram-modes).
 
-## Usage Examples
-
-### Convert Special Purpose Memory to "Online" Memory
-
-For this operation, may need to install the following prerequisites:
-
-- `numactl`
-- `daxctl` - needs to be built from the tools/ndctl repository, as packaged versions are not new enough. (TODO: verify)
-
-Use `numastat` to observe current NUMA topology of your system. This example is from a single-socket system:
-
-```text
-[root@hostname ~]# numastat
-                 node0
-numa_hit       5493270
-numa_miss            0
-numa_foreign         0
-interleave_hit   14593
-local_node     5493269
-other_node           0
-```
-
-Use daxctl to "online" the memory:
-
-```shell
-daxctl reconfigure-device --mode=system-ram --region=0 dax0.0
-daxctl reconfigure-device --mode=system-ram --region=0 --force dax0.0
-```
-
-Example output:
-
-```text
-[root@hostname ~]# daxctl reconfigure-device --mode=system-ram --region=0 dax0.0
-dax0.0: error: kernel policy will auto-online memory, aborting
-error reconfiguring devices: Device or resource busy
-reconfigured 0 devices
-
-[root@hostname ~]# daxctl reconfigure-device --mode=system-ram --region=0 --force dax0.0
-dax0.0:
-WARNING: detected a race while onlining memory
-Some memory may not be in the expected zone. It is
-recommended to disable any other onlining mechanisms,
-and retry. If onlining is to be left to other agents,
-use the --no-online option to suppress this warning
-dax0.0: all memory sections (256) already online
-[
-  {
-    "chardev":"dax0.0",
-    "size":34359738368,
-    "target_node":1,
-    "align":2097152,
-    "mode":"system-ram",
-    "online_memblocks":256,
-    "total_memblocks":256,
-    "movable":false
-  }
-]
-reconfigured 1 device
-```
-
-Now run `numastat` again; you should see an additional NUMA node:
-
-```text
-[root@hostname ~]# numastat
-                  node0 node1
-numa_hit        8080981     0
-numa_miss             0     0
-numa_foreign          0     0
-interleave_hit    14593     0
-local_node      8080981     0
-other_node            0     0
-```
-
-### Run MLC to Test Memory Bandwidth and Latency
-
-Assuming you have already "onlined" your CXL memory as a NUMA node, you can test bandwidth and latency with Intel's Memory Latency Checker (`mlc`).
+When the device is in System RAM mode, you can run the `mlc` program to test bandwidth and latency:
 
 ```shell
 ./mlc --latency_matrix
@@ -137,9 +65,9 @@ Numa node            0       1
 
 ## MXCLI
 
-`mxcli`, included in the root directory of this repository, is a management and support tool for sending CXL mailbox commands to a CXL memory device. 
+`mxcli`, included in the root directory of this repository, is a management and support tool for sending CXL mailbox commands to a CXL memory device.
 `mxcli` can be used to retrieve information about a CXL memory device such as identity and health information, read logs, issue resets, and perform other support actions.
-It also has options to access standard PCIe capability and extended capability registers along with non-standard CXL specific DVSEC and DOE capability control registers, making it useful for debug and diagnostics. 
+It also has options to access standard PCIe capability and extended capability registers along with non-standard CXL specific DVSEC and DOE capability control registers, making it useful for debug and diagnostics.
 
 ```text
 [root@hostname ~]# ./mxcli -d /dev/cxl/mem0 -cmd identify
@@ -163,4 +91,4 @@ Opening Device: /dev/cxl/mem0
 }
 ```
 
-`mxcli` also has an interactive mode with indexed menus, auto-discovery of CXL devices and auto-completion of commands/fields, making it a self-documenting and intuitive tool. 
+`mxcli` also has an interactive mode with indexed menus, auto-discovery of CXL devices and auto-completion of commands/fields, making it a self-documenting and intuitive tool.
