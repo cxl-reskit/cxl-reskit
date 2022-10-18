@@ -15,7 +15,6 @@ It also allows us to propose patches to upstream maintainers.
 
 The CMRK documentation and code is currently focused on Linux only.
 
-
 ## Recommended System Requirements
 
 We recommend the following system configuration to use CXL memory:
@@ -136,8 +135,52 @@ On an AMD system, you may need to enable it in the BIOS configuration.
 When your CXL memory is configured as [specific purpose memory](#about-bios-support-for-specific-purpose-memory),
 it can only be used by applications that have memory-mapped the DAX device.
 
-> TODO: short mmap code example?
-> TODO: stream command line?
+Applications that use `mmap` must do the following to use CXL memory:
+
+- Open the DAX device (e.g. `/dev/dax0.0`)
+- Specify a length and offset with a 2 MiB alignment
+
+The following is an example of a minimal C program that writes to CXL memory via `mmap`.
+
+```c
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
+
+int main()
+{
+  /* DAX mapping requires a 2MiB alignment */
+  size_t page_size = 2 * 1024 * 1024;
+
+  int fd = open("/dev/dax0.0", O_RDWR);
+  if (fd == -1) {
+    perror("open() failed");
+    return 1;
+  }
+
+  void *dax_addr = mmap(NULL, page_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  if (dax_addr == MAP_FAILED) {
+    perror("mmap() failed");
+    close(fd);
+    return 1;
+  }
+
+  /* Write something to the memory */
+  strcpy(dax_addr, "hello world");
+
+  munmap(dax_addr, page_size);
+  close(fd);
+  return 0;
+}
+```
+
+More examples can be found in patches applied in the `cxl` branch of these benchmark repositories:
+
+- [multichase](https://github.com/cxl-reskit/multichase/commits/cxl)
+- [STREAM](https://github.com/cxl-reskit/STREAM/commits/cxl)
+- [stressapptest](https://github.com/cxl-reskit/stressapptest/commits/cxl)
 
 ## Using CXL Memory as System RAM
 
