@@ -135,10 +135,10 @@ Numa node            0       1
        0        30562.8  4795.3
 ```
 
-
 ## MXCLI
-Micron CXL CLI, included in the root directory of this repository, is a management service tool which supports sending CXL commands as outlined by the CXL spec to the CXL component. 
-`mxcli` can be used to retrieve information of the CXL memory device such as identity and health information, read logs, issue resets, and perform other support actions.
+
+`mxcli`, included in the root directory of this repository, is a management and support tool for sending CXL mailbox commands to a CXL memory device. 
+`mxcli` can be used to retrieve information about a CXL memory device such as identity and health information, read logs, issue resets, and perform other support actions.
 It also has options to access standard PCIe capability and extended capability registers along with non-standard CXL specific DVSEC and DOE capability control registers, making it useful for debug and diagnostics. 
 
 ```text
