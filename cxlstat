@@ -682,15 +682,15 @@ else
                    "${DAXCTL_MAJ_VER_MIN}" "${DAXCTL_MIN_VER_MIN}" ; then
         DAXCTL_USABLE=1
         echo -n "The package daxctl is installed and at a sufficient version "
-        echo    "(found ${DAXCTL_MAJOR_VER}.${DAXCTL_MINOR_VER})"
+        echo    "(found ${DAXCTL_MAJOR_VER}.${DAXCTL_MINOR_VER})."
     else
         echo -n "The package daxctl is installed but at a version that is too old "
-        echo    "(found ${DAXCTL_MAJOR_VER}.${DAXCTL_MINOR_VER})"
+        echo    "(found ${DAXCTL_MAJOR_VER}.${DAXCTL_MINOR_VER})."
         if (( DAXCTL_UPGRADABLE == 1 )) ; then
-            echo "The package daxctl can be upgraded, please upgrade and re-run ${0}."
+            echo "The package daxctl can be upgraded. Please upgrade and re-run ${0}."
         else
-            echo "The package daxctl can't be upgraded, please compile and install daxctl"
-            echo "and re-run ${0}."
+            echo "The package daxctl can't be upgraded. Please compile and install daxctl,"
+            echo "then re-run ${0}."
         fi
     fi
 fi
