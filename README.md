@@ -1,17 +1,17 @@
 # cxl-reskit
 
-This is the top-level repository of the CXL Memory Resource Kit (CMRK) - a collection of
+This is the top-level repository of the CXL Memory Resource Kit (CMRK) which is a collection of
 documentation, tools, and benchmarks for use with CXL memory.
 
 The CMRK comprises both original content and CXL-related enhancements to external projects
-that we plan to propose for inclusion in upstream where appropriate.
-We expect to continue adding to the CMRK over time, in collaboration with the community,
-to help create a vibrant software ecosystem for getting the most out of CXL memory.
+that we plan to submit to upstream where appropriate.
+We expect to expand the CMRK over time, in collaboration with the community,
+to help enable applications to take full advantage of CXL memory.
 
 When making CXL-related enhancements to external projects, we source those repositories rather
 than flattening the code.
-This makes it easy to see what was modified, while still supporting ease of use.
-It also allows us to propose patches to upstream maintainers.
+This makes it easy to see what was modified, and also simplifies the process of submitting
+patches to upstream maintainers.
 
 The CMRK documentation and code is currently focused on Linux only.
 
