@@ -1,206 +1,147 @@
 # cxl-reskit/benchmarks
 
-This subdirectory contains (micro)benchmarks that have been modified to make it easy to test
+This subdirectory contains benchmarks that have been modified to make it easy to test
 CXL memory.
 
 ## Compiling the Benchmarks
 
-You can compile all the tools and benchmarks by running the top-level bootscript.sh script as follows:
+You can build the benchmarks by following the in-tree documentation in the subdirectories here:
 
-```shell
-./bootstrap.sh --build
-```
+- [multichase](multichase)
+- [STREAM](stream)
+- [stressapptest](stressapptest)
 
-Or you can build the benchmarks by following the in-tree documentation in the subdirectories here
-(e.g., multichase, STREAM, stressapptest). Note that it might be necessary to install compilers and
-development tools to complete those builds.
+Note that it might be necessary to install compilers and development tools to complete these builds.
+
+## Quick Links
+
+- [Testing CXL Memory via DAX](#testing-cxl-memory-via-dax)
+- [Testing CXL Memory via NUMA](#testing-cxl-memory-via-numa)
+- [Multichase](#multichase)
+- [STREAM](#stream)
+- [Stressapptest](#stressapptest)
 
 ## Testing CXL memory via DAX
 
-Check whether your memory is configured as specific purpose memory:
+If your CXL memory is in [device DAX mode](../README.md#using-cxl-memory-as-a-dax-device),
+you can test it by running benchmarks on the DAX device (e.g. `/dev/dax0.0`).
 
-```shell
-grep dax /proc/iomem
-```
+In this configuration, the "memory under test" is the CXL memory, but the benchmark code is running
+from local DRAM.
 
-Example output:
+If no DAX devices are visible, your memory may be "online" as a NUMA node.
+In this case, you can use the `numactl` program to run benchmarks on the CXL NUMA node.
+See [Testing CXL memory via NUMA](#testing-cxl-memory-via-numa).
 
-```text
-[root@hostname ~]# grep dax /proc/iomem
-      1080000000-187fffffff : dax0.0
-      1880000000-207fffffff : dax1.0
-```
+## Testing CXL memory via NUMA
 
-If your memory is configured as a DAX device, you can use the benchmarks to test the DAX memory.
-In these configurations, the "memory under test" is the CXL memory, but the benchmark code is running
-from conventional memory.
+If your CXL memory is in [system RAM mode](../README.md#using-cxl-memory-as-system-ram),
+you can test it by using `numactl` to set the memory placement policy of the benchmark application.
 
-If you didn't see any dax devices above, your memory may be "online" as a NUMA node.
-
-```text
-[root@hostname ~]# numastat
-                           node0           node1
-numa_hit                36410450         9162514
-numa_miss                      0               0
-numa_foreign                   0               0
-interleave_hit             14593               0
-local_node              36410450               0
-other_node                     0         9162514
-```
-
-In this case, you can use the `numactl` program to [run benchmarks in the CXL numa node](https://github.com/cxl-reskit/cxl-reskit/edit/jmg-work/benchmarks/README.md#testing-cxl-memory-via-numa).
+See [Using CXL Memory as System RAM](../README.md#using-cxl-memory-as-system-ram) for an example
+of locating which NUMA node your CXL memory resides on.
 
 ## Multichase
 
-Multichase is a graph analysis / pointer chasing benchmark. [Documentation can be found here.](https://github.com/jagalactic/multichase).
+Multichase is a graph analysis / pointer chasing benchmark.
+[Documentation can be found here.](https://github.com/cxl-reskit/multichase).
 
-TODO: link multichase from cxl-reskit org.
+### Build multichase
 
-Run multichase against standard memory:
+Building `multichase` requires the `cmake` package and a C++ compiler (such as `g++`) installed on the system.
+
+```shell
+cd multichase
+make all
+```
+
+### Run multichase against local DRAM
 
 ```shell
 ./multichase
 ```
 
-```text
-[root@hostname multichase]# ./multichase
-cheap_create_dax: /dev/dax0.0 size is 34359738368
-Allocated cursor_heap size 34359738368
-87.869
-```
+### Run multichase against a DAX device
 
-TODO: figure out and explain what the output/result means from Multichase
-
-Run multichase against a DAX device:
+When running multichase with the `-d <daxdev>` argument, the memory-under-test is allocated from
+the DAX device, but all other memory used by the benchmark (code, stacks, local data) is allocated
+from local DRAM.
 
 ```shell
-./multichase -d /dev/dax0.0
+sudo ./multichase -d <dax-device>
 ```
 
-```text
-[root@hostname multichase]# ./multichase -d /dev/dax0.0
-cheap_create_dax: /dev/dax0.0 size is 34359738368
-Allocated cursor_heap size 34359738368
-92.268
+### Run multichase against a NUMA node
+
+```shell
+numactl --membind <node> ./multichase
 ```
-
-TODO: Substitute results from a faster CXL device.
-
-When running multichase with the `-d <daxdev>` argument, the memory-under-test is allocated from the DAX device, but all other memory used by the benchmark (code, stacks, local data) is allocated from local DRAM.
 
 ## STREAM
 
-Stream is a benchmark for measuring sustained memory bandwidth. [Documentation can be found here.](https://github.com/jagalactic/STREAM)
+STREAM is a benchmark for measuring sustained memory bandwidth.
+[Documentation can be found here.](https://github.com/cxl-reskit/STREAM)
 
-TODO: link STREAM from cxl-reskit org.
+### Build STREAM
 
-Run Stream against local DRAM in a system:
-
-```shell
-./stream_mu -a 1000000000
-```
-
-```text
-[root@hostname stream]# ./stream_mu -a 1000000000
-arraycount: 1000000000
-a: 0x7fefbca00000
-b: 0x7ff199765000
-c: 0x7ff3764ca000
--------------------------------------------------------------
-STREAM version $Revision: 5.10 $
--------------------------------------------------------------
-This system uses 8 bytes per array element.
--------------------------------------------------------------
-Array size = 1000000000 (elements), Offset = 0 (elements)
-Memory per array = 7629.4 MiB (= 7.5 GiB).
-Total memory required = 22888.2 MiB (= 22.4 GiB).
-Each kernel will be executed 10 times.
- The *best* time for each kernel (excluding the first iteration)
- will be used to compute the reported bandwidth.
--------------------------------------------------------------
-Number of Threads requested = 208
-Number of Threads counted = 208
--------------------------------------------------------------
-Your clock granularity/precision appears to be 1 microseconds.
-Each test below will take on the order of 267582 microseconds.
-   (= 267582 clock ticks)
-Increase the size of the arrays if this shows that
-you are not getting at least 20 clock ticks per test.
--------------------------------------------------------------
-WARNING -- The above is only a rough guideline.
-For best results, please be sure you know the
-precision of your system timer.
--------------------------------------------------------------
-Function    Best Rate MB/s  Avg time     Min time     Max time
-Copy:           58345.2     0.278284     0.274230     0.287886
-Scale:          58091.0     0.279548     0.275430     0.288173
-Add:            58753.4     0.413312     0.408487     0.423039
-Triad:          58794.4     0.413108     0.408202     0.427315
--------------------------------------------------------------
-Solution Validates: avg error less than 1.000000e-13 on all three arrays
--------------------------------------------------------------
-```
-
-Run Stream against CXL memory in a system:
+Building `stream` requires a C compiler (such as `gcc`) installed on the system.
 
 ```shell
-./stream_mu -a 1000000000 --memdev /dev/dax0.0
+cd STREAM
+make all
 ```
 
-```text
-[root@hostname stream]# ./stream_mu -a 1000000000 --memdev /dev/dax0.0
-arraycount: 1000000000
-memdev: /dev/dax0.0
-a: 0x7f4f51600000 phys: (nil)
-b: 0x7f512e365000 phys: 0x1dcd65000
-c: 0x7f530b0ca000 phys: 0x3b9aca000
--------------------------------------------------------------
-STREAM version $Revision: 5.10 $
--------------------------------------------------------------
-This system uses 8 bytes per array element.
--------------------------------------------------------------
-Array size = 1000000000 (elements), Offset = 0 (elements)
-Memory per array = 7629.4 MiB (= 7.5 GiB).
-Total memory required = 22888.2 MiB (= 22.4 GiB).
-Each kernel will be executed 10 times.
- The *best* time for each kernel (excluding the first iteration)
- will be used to compute the reported bandwidth.
--------------------------------------------------------------
-Number of Threads requested = 208
-Number of Threads counted = 208
--------------------------------------------------------------
-Your clock granularity/precision appears to be 1 microseconds.
-Each test below will take on the order of 2767761 microseconds.
-   (= 2767761 clock ticks)
-Increase the size of the arrays if this shows that
-you are not getting at least 20 clock ticks per test.
--------------------------------------------------------------
-WARNING -- The above is only a rough guideline.
-For best results, please be sure you know the
-precision of your system timer.
--------------------------------------------------------------
-Function    Best Rate MB/s  Avg time     Min time     Max time
-Copy:            4219.7     3.796197     3.791722     3.800682
-Scale:           4219.5     3.797511     3.791948     3.805695
-Add:             4465.4     5.377409     5.374637     5.379143
-Triad:           4465.1     5.378502     5.375028     5.383458
--------------------------------------------------------------
-Solution Validates: avg error less than 1.000000e-13 on all three arrays
--------------------------------------------------------------
+### Run STREAM against local DRAM
+
+```shell
+./stream -a 1000000000
 ```
 
-When running stream_mu with the `--memdev <daxdev>` argument, the memory-under-test is allocated from the DAX device, but all other memory used by the benchmark (code, stacks, local data) is allocated from local DRAM.
+### Run STREAM against a DAX device
 
-TODO: substitute results from a faster CXL device.
+When running `stream` with the `--memdev <daxdev>` argument, the memory-under-test is allocated
+from the DAX device, but all other memory used by the benchmark (code, stacks, local data) is
+allocated from local DRAM.
+
+```shell
+sudo ./stream -a 1000000000 --memdev <dax-device>
+```
+
+### Run STREAM against a NUMA node
+
+```shell
+numactl --membind <node> ./stream -a 1000000000
+```
 
 ## Stressapptest
 
-TODO: (Jacob) Usage example, comparing a run in local memory with a run in CXL memory
+### Build stressapptest
 
-## Testing CXL memory via NUMA
+Building `stressapptest` requires a C++ compiler (such as `g++`) installed on the system.
 
-The examples above work when your CXL memory is configured as specific purpose (a.k.a. soft reserved) memory - which is mappable via DAX. It is also possible to use CXL memory when it is "online" as a NUMA node. (TODO: link to conversion example in tools)
+```shell
+cd stressapptest
+./configure && make -j`nproc`
+```
 
-TODO: Usage examples, showing the following:
+### Run stressapptest against local DRAM
 
-* Use numactl to run each benchmark in the normal and cxl numa nodes
+```shell
+src/stressapptest
+```
+
+### Run stressapptest against a DAX device
+
+When running `stressapptest` with the `--memdev <daxdev>` argument, the memory-under-test is
+allocated from the DAX device, but all other memory used by the benchmark (code, stacks, local
+data) is allocated from local DRAM.
+
+```shell
+sudo src/stressapptest -D <dax-device>
+```
+
+### Run stressapptest against a NUMA node
+
+```shell
+numactl --membind <node> src/stressapptest
+```

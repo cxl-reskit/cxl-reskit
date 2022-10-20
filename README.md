@@ -63,21 +63,33 @@ system configured with CXL memory, for example:
 ```
 
 ```text
-root@hostname:~/cxl-reskit# ./cxlstat
+$ sudo ./cxlstat
 System booted using UEFI
 Detected Ubuntu
-Minimum kernel version requirement met - 5.15.0-46-generic vs. 5.15
-Kernel boot configuration located (/boot/config-5.15.0-46-generic)
+Minimum kernel version requirement met - 5.19.0-21-generic vs. 5.15
+Kernel boot configuration located (/boot/config-5.19.0-21-generic)
 
-The package daxctl is installed and at a sufficient version.
-daxctl version: 74.0
+The package daxctl is installed and at a sufficient version (found 74.0)
 
 Detecting CXL devices ...
+            CXL Device : mem0
+                Vendor : Micron Technology Inc
+             Device ID : Device 6400
+               Address : 0000:7f:00.0
+                  Size : 128 GB
+       Mailbox Present : yes
 
-Standard CXL mailbox commands may be used
+Detecting DAX devices ...
+                  Name : dax0.0
+                  Path : /dev/dax0.0
+                  Size : 128 GB
+          Memory Range : 0x1050000000-0x304FFFFFFF (128 GB)
+                  Mode : devdax (memory directly usable only via DAX access)
+
+The daxctl command appears usable for all normal functions.
+
+Standard CXL mailbox commands may be used (no vendor-specific commands allowed).
 ```
-
-> TODO: update output from the latest version of cxlstat
 
 The `cxlstat` tool is intended both as a useful way of checking your configuration, and as an example of how to
 do so in your own scripts or programs.
@@ -119,7 +131,8 @@ Linux configures CXL memory during boot as follows.
 device. See [Using CXL Memory as a DAX Device](#using-cxl-memory-as-a-dax-device).
 - If your BIOS did **not** apply the `EFI_MEMORY_SP` attribute:
   - Your CXL memory will appear in a new NUMA node which has no local CPU cores associated with it.
-  - You can use the `numactl` tool to set the memory placement policy for any application that needs to use CXL memory.
+  - You can use the `numactl` tool to set the memory placement policy for any application that
+  needs to use the CXL memory.
   See [Using CXL Memory as System RAM](#using-cxl-memory-as-system-ram).
 
 It may be possible to convert the mode that the CXL memory is in after the system has already booted.
@@ -220,19 +233,18 @@ mode or system RAM mode. See
 [About BIOS Support for Specific Purpose Memory](#about-bios-support-for-specific-purpose-memory).
 
 Use `daxctl list` to list the current state of CXL memory devices on the system.
-If the output of `daxctl list` is empty, it may be necessary to reboot the system and configure the
-BIOS to set the [specific purpose memory](#about-bios-support-for-specific-purpose-memory)
-attribute.
+If the output of `daxctl list` is empty, it may be necessary to reboot the system and
+[configure the BIOS](#enabling-specific-purpose-memory) to enable specific purpose memory.
 
 To convert from device DAX mode to system RAM mode:
 
-```bash
+```shell
 sudo daxctl reconfigure-device --mode=system-ram dax0.0 --force
 ```
 
 To convert from system RAM mode to Device DAX mode:
 
-```bash
+```shell
 sudo daxctl reconfigure-device --mode=devdax dax0.0 --force
 ```
 
