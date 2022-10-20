@@ -5,11 +5,7 @@ CXL memory.
 
 ## Compiling the Benchmarks
 
-You can build the benchmarks by following the in-tree documentation in the subdirectories here:
-
-- [multichase](multichase)
-- [STREAM](stream)
-- [stressapptest](stressapptest)
+Build instructions are in the sections below for each benchmark.
 
 Note that it might be necessary to install compilers and development tools to complete these builds.
 
@@ -17,6 +13,7 @@ Note that it might be necessary to install compilers and development tools to co
 
 - [Testing CXL Memory via DAX](#testing-cxl-memory-via-dax)
 - [Testing CXL Memory via NUMA](#testing-cxl-memory-via-numa)
+- [MLC](#mlc)
 - [Multichase](#multichase)
 - [STREAM](#stream)
 - [Stressapptest](#stressapptest)
@@ -30,7 +27,7 @@ In this configuration, the "memory under test" is the CXL memory, but the benchm
 from local DRAM.
 
 If no DAX devices are visible, your memory may be "online" as a NUMA node.
-In this case, you can use the `numactl` program to run benchmarks on the CXL NUMA node.
+In this case, you can still use the `numactl` program to run benchmarks on the CXL NUMA node.
 See [Testing CXL memory via NUMA](#testing-cxl-memory-via-numa).
 
 ## Testing CXL memory via NUMA
@@ -40,6 +37,21 @@ you can test it by using `numactl` to set the memory placement policy of the ben
 
 See [Using CXL Memory as System RAM](../README.md#using-cxl-memory-as-system-ram) for an example
 of locating which NUMA node your CXL memory resides on.
+
+## MLC
+
+The Memory Latency Checker (`mlc`) program from Intel is a valuable tool for understanding memory
+performance. It is not open source, but can be freely downloaded from
+[this website](https://www.intel.com/content/www/us/en/developer/articles/tool/intelr-memory-latency-checker.html).
+
+`mlc` only tests local DRAM and CXL memory via NUMA. It cannot be used to test CXL memory that is
+in device DAX mode.
+
+```shell
+cd mlc/Linux
+sudo ./mlc --latency_matrix
+sudo ./mlc --bandwidth_matrix
+```
 
 ## Multichase
 
@@ -114,6 +126,9 @@ numactl --membind <node> ./stream -a 1000000000
 ```
 
 ## Stressapptest
+
+Stressful Application Test (`stressapptest`) is a memory load testing tool.
+[Documentation can be found here.](https://github.com/cxl-reskit/stressapptest/)
 
 ### Build stressapptest
 
