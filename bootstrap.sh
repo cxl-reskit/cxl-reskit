@@ -33,16 +33,3 @@ if [ ! -d "mlc" ]; then
 else
 	echo -e "\nAlready present: benchmarks/mlc\n"
 fi
-
-#
-# Clone the tools
-#
-cd -
-cd ./tools
-if [ ! -d "ndctl" ]; then
-	echo -e "\nCloning tools/ndctl\n"
-	git clone https://github.com/pmem/ndctl.git
-else
-	echo -e "\nAlready present: tools/ndctl\n"
-fi
-

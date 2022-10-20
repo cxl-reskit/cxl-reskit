@@ -9,15 +9,15 @@ These tools are now being generalized to also support CXL memory devices.
 
 The [ndctl repository](https://github.com/pmem/ndctl/) now provides a set of command line tools:
 
-- `cxl-cli` - lists CXL memory devices and metadata
+- `cxl-cli` - lists CXL devices on the system (not limited to memory devices)
 - `daxctl` - configures memory devices for Device DAX mode
 - `ndctl` - performs configuration and management commands specific to non-volatile memory
 
-The ndctl repository also provides a set of C libraries that correspond to each of the command line tools:
+See the [NDCTL User Guide](https://docs.pmem.io/ndctl-user-guide/installing-ndctl)
+for more information on installing and using these tools.
 
-- `libcxl`
-- `libdaxctl`
-- `libndctl`
+Note that if on the latest Fedora or Ubuntu release, installing from packages is sufficient. Older
+distros may require installing from source to get a new enough version.
 
 ## MLC
 
