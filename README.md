@@ -43,20 +43,21 @@ Clone this repository and run the bootstrap.sh script to fetch the external cont
 - [About Raw Command Support](#about-raw-command-support)
 - [About BIOS Support for Specific Purpose Memory](#about-bios-support-for-specific-purpose-memory)
 - [Enabling Specific Purpose Memory](#enabling-specific-purpose-memory)
+- [About NDCTL and DAXCTL](#about-ndctl-and-daxctl)
 - [Using CXL Memory as a DAX Device](#using-cxl-memory-as-a-dax-device)
 - [Using CXL Memory as System RAM](#using-cxl-memory-as-system-ram)
 - [Converting Between Device DAX and System RAM Modes](#converting-between-device-dax-and-system-ram-modes)
 - [Testing CXL Memory](#testing-cxl-memory)
+- [About MXCLI](#about-mxcli)
 
 ## Examining Your CXL Memory
 
-The `cxlstat` tool in the root directory of this repository is intended to tell you everything you might need to know about a
-system configured with CXL memory, for example:
+The `cxlstat` tool in the root directory of this repository is intended to tell you everything you
+might need to know about a system configured with CXL memory, for example:
 
-- Is there any CXL memory configured in your system?
-- Is your CXL memory configured as conventional or [specific purpose](#about-bios-support-for-specific-purpose-memory) memory?
-- How can you run programs and benchmarks using your CXL memory?
-- Does your kernel contain CXL support, and is it enabled?
+- Does your kernel contain support for CXL?
+- Are there CXL memory devices present in your system?
+- How is your CXL memory currently configured?
 
 ```shell
 ./cxlstat
@@ -146,9 +147,25 @@ On an AMD system, you may need to enable it in the BIOS configuration:
 
 - Advanced &rarr; AMD CBS &rarr; CXL Common Options &rarr; CXL SPM &rarr; set to "Enabled"
 
+## About NDCTL and DAXCTL
+
+The [ndctl](https://github.com/pmem/ndctl/) project originally contained only tools for
+administering NVDIMMs and other non-volatile memory. These tools are now being generalized to also
+support CXL memory devices. One of these tools is `daxctl`, which now serves as the primary tool
+for configuring CXL memory.
+
+`cxlstat` checks whether the `daxctl` package is installed, and that the installed version is new
+enough to support CXL memory.
+
+See the [NDCTL User Guide](https://docs.pmem.io/ndctl-user-guide/installing-ndctl)
+for more information on installing `daxctl`.
+Note that on the [recommended distros](#recommended-system-requirements), installing from packages
+is sufficient. Older distros may require installing from source to get a new enough version.
+
 ## Using CXL Memory as a DAX Device
 
-When CXL memory is in device DAX mode, it can only be used by applications that have memory-mapped the DAX device.
+When CXL memory is in device DAX mode, it can only be used by applications that have memory-mapped
+the DAX device.
 
 Applications that use `mmap` on CXL memory must do the following:
 
@@ -242,20 +259,65 @@ To convert from device DAX mode to system RAM mode:
 sudo daxctl reconfigure-device --mode=system-ram dax0.0 --force
 ```
 
-To convert from system RAM mode to Device DAX mode:
+`daxctl` also provides a command to convert from system RAM mode to Device DAX mode. However, this
+is not guaranteed to succeed, depending on the state of the system.
 
 ```shell
 sudo daxctl reconfigure-device --mode=devdax dax0.0 --force
 ```
+
+If `daxctl reconfigure-device --mode=devdax` does not succeed, a reboot may be needed to get the
+CXL memory device back into device DAX mode.
 
 More extensive documentation for `daxctl` is available in the
 [NDCTL User Guide](https://docs.pmem.io/ndctl-user-guide/).
 
 ## Testing CXL Memory
 
-The Intel Memory Latency Checker (MLC) can be used to test the performance of CXL memory in
-[system RAM](#using-cxl-memory-as-system-ram) mode. Usage documentation is in [tools/README.md](tools/README.md#mlc).
+After you run the [bootstrap script](#getting-started), the [benchmarks](benchmarks) subdirectory
+will contain several benchmark tools for testing CXL memory:
 
-The [benchmarks](benchmarks) subdirectory contains several open source tools that have been modified to be able to test
+- [Intel Memory Latency Checker (MLC)](https://www.intel.com/content/www/us/en/developer/articles/tool/intelr-memory-latency-checker.html)
+- [multichase](benchmarks/multichase)
+- [STREAM](benchmarks/STREAM)
+- [stressapptest](benchmarks/stressapptest)
+
+The tools that are open source (multichase, STREAM, stressapptest) have been modified to be able to test
 CXL memory in both [device DAX](#using-cxl-memory-as-a-dax-device) and
-[system RAM](#using-cxl-memory-as-system-ram) modes. Usage documentation is in [benchmarks/README.md](benchmarks/README.md).
+[system RAM](#using-cxl-memory-as-system-ram) modes.
+
+Usage documentation for all the benchmark tools is in [benchmarks/README.md](benchmarks/README.md).
+
+## About MXCLI
+
+`mxcli`, included in the base directory of this repository, is a management and support tool for
+sending CXL mailbox commands to a CXL memory device. `mxcli` can be used to retrieve identity
+and health information about a CXL device, read logs, issue resets, and
+perform other support actions. It also has options to access standard PCIe capability and extended
+capability registers along with non-standard CXL specific DVSEC and DOE capability control
+registers, making it useful for debug and diagnostics.
+
+```text
+$ sudo ./mxcli -d /dev/cxl/mem0 -cmd identify
+Opening Device: /dev/cxl/mem0
+2022-10-14 15:44:25.950 | INFO     | mxlib.mxlibpy.cmds.mailbox.mbox:send_command:158 - Mailbox cmd=0 - ret_code=0
+{
+    "fw_revision": "01.000.008.00",
+    "total_capacity": 512,
+    "volatile_capacity": 512,
+    "persistent_capacity": 0,
+    "partition_align": 0,
+    "info_event_log_size": 16,
+    "warning_event_log_size": 16,
+    "failure_event_log_size": 16,
+    "fatal_event_log_size": 16,
+    "lsa_size": 0,
+    "poison_list_max_mer": 0,
+    "inject_poison_limit": 0,
+    "poison_caps": 0,
+    "qos_telemetry_caps": 0
+}
+```
+
+`mxcli` also has an interactive mode with indexed menus, auto-discovery of CXL devices and
+auto-completion of commands/fields, making it a self-documenting and intuitive tool.
