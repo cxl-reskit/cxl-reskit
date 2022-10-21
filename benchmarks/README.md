@@ -147,9 +147,9 @@ src/stressapptest
 
 ### Run stressapptest against a DAX device
 
-When running `stressapptest` with the `--memdev <daxdev>` argument, the memory-under-test is
-allocated from the DAX device, but all other memory used by the benchmark (code, stacks, local
-data) is allocated from local DRAM.
+When running `stressapptest` with the `-D <daxdev>` argument, the memory-under-test is allocated
+from the DAX device, but all other memory used by the benchmark (code, stacks, local data) is
+allocated from local DRAM.
 
 ```shell
 sudo src/stressapptest -D <dax-device>
