@@ -5,7 +5,7 @@ documentation, tools, and benchmarks for use with CXL memory.
 
 The CMRK comprises both original content and CXL-related enhancements to external projects
 that we plan to submit to upstream where appropriate.
-We expect to expand the CMRK over time, in collaboration with the community,
+Our goal is to expand the CMRK over time, in collaboration with the community,
 to help enable applications to take full advantage of CXL memory.
 
 When making CXL-related enhancements to external projects, we source those repositories rather
