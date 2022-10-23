@@ -278,9 +278,9 @@ After you run the [bootstrap script](#getting-started), the [benchmarks](benchma
 will contain several benchmark tools for testing CXL memory:
 
 - [Intel Memory Latency Checker (MLC)](https://www.intel.com/content/www/us/en/developer/articles/tool/intelr-memory-latency-checker.html)
-- [multichase](benchmarks/multichase)
-- [STREAM](benchmarks/STREAM)
-- [stressapptest](benchmarks/stressapptest)
+- [multichase](https://github.com/cxl-reskit/multichase)
+- [STREAM](https://github.com/cxl-reskit/STREAM)
+- [stressapptest](https://github.com/cxl-reskit/stressapptest)
 
 The tools that are open source (multichase, STREAM, stressapptest) have been modified to be able to test
 CXL memory in both [device DAX](#using-cxl-memory-as-a-dax-device) and
