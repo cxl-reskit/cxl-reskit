@@ -1,4 +1,4 @@
-# cxl-reskit
+# CXL Memory Resource Kit (CMRK)
 
 This is the top-level repository of the CXL Memory Resource Kit (CMRK) which is a collection of
 documentation, tools, and benchmarks for use with CXL memory.
@@ -10,7 +10,7 @@ to help enable applications to take full advantage of CXL memory.
 
 When making CXL-related enhancements to external projects, we source those repositories rather
 than flattening the code.
-This makes it easy to see what was modified, and also simplifies the process of submitting
+This makes it easy to see what we modified, and also simplifies the process of submitting
 patches to upstream maintainers.
 
 The CMRK documentation and code is currently focused on Linux only.
@@ -19,6 +19,7 @@ The CMRK documentation and code is currently focused on Linux only.
 
 We recommend the following system configuration to use CXL memory:
 
+- A CPU and system BIOS that supports CXL memory
 - The latest release of Fedora or Ubuntu LTS
   - Currently: Fedora 36 or Ubuntu 22.04.1 LTS
 - The latest Linux kernel package available for the distro
@@ -26,7 +27,6 @@ We recommend the following system configuration to use CXL memory:
   - Upgrade on Ubuntu: `apt upgrade linux-base`
 - The `daxctl` package installed on your system (version 72 or later)
 - The `numactl` package installed on your system
-- A system BIOS supporting the `EFI_MEMORY_SP` attribute (see: [About kernel support for CXL memory](#about-kernel-support-for-cxl-memory))
 
 ## Getting Started
 
@@ -109,8 +109,8 @@ supports CXL memory.
 ## About Raw Command Support
 
 Linux supports CXL mailbox commands defined in the CXL specification.
-However, unsupported commands may be required to use vendor specific features or perform a firmware
-upgrade on the device.
+However, unsupported commands may be required to use vendor specific features or perform maintenance operations such as firmware
+upgrade on the memory device.
 
 A kernel built with the `CXL_MEM_RAW_COMMANDS` option allows allows vendor-specific CXL mailbox commands
 (i.e., "raw commands") to be sent to the device. This is disabled by default, but the option exists
@@ -131,7 +131,7 @@ Linux configures CXL memory during boot as follows.
   - Your CXL memory can be used only by applications that call `mmap` to memory-map the
 device. See [Using CXL Memory as a DAX Device](#using-cxl-memory-as-a-dax-device).
 - If your BIOS did **not** apply the `EFI_MEMORY_SP` attribute:
-  - Your CXL memory will appear in a new NUMA node which has no local CPU cores associated with it.
+  - Your CXL memory will appear in one or more new NUMA nodes which have no local CPU cores.
   - You can use the `numactl` tool to set the memory placement policy for any application that
   needs to use the CXL memory.
   See [Using CXL Memory as System RAM](#using-cxl-memory-as-system-ram).
@@ -160,11 +160,11 @@ enough to support CXL memory.
 See the [NDCTL User Guide](https://docs.pmem.io/ndctl-user-guide/installing-ndctl)
 for more information on installing `daxctl`.
 Note that on the [recommended distros](#recommended-system-requirements), installing from packages
-is sufficient. Older distros may require installing from source to get a new enough version.
+is sufficient. Older distros may require building and installing `ndctl` or its sub-packages (`daxctl`, the `cxl` CLI) from source to get a new enough version.
 
 ## Using CXL Memory as a DAX Device
 
-When CXL memory is in device DAX mode, it can only be used by applications that have memory-mapped
+When CXL memory is in device DAX mode, it is only usable  by applications that can map memory from
 the DAX device.
 
 Applications that use `mmap` on CXL memory must do the following:
@@ -216,7 +216,7 @@ More examples can be found in the patches applied in the `cxl` branch of these b
 
 ## Using CXL Memory as System RAM
 
-When CXL memory is in system RAM mode, Linux maps it to a NUMA node that can be used by any application.
+When CXL memory is in system RAM mode, Linux maps it to one or more NUMA nodes that can be used by any application.
 
 You can run `numactl -H` to view the NUMA nodes on your system. In this example, NUMA node 1 (which has no local CPUs) corresponds to
 the CXL memory device.
@@ -236,7 +236,7 @@ node   0   1
   1:  255  10
 ```
 
-You can run `numactl` with the `--membind` option to run your app while constraining its memory allocations to the CXL NUMA node.
+You can use `numactl` with the `--membind` option to run your app while constraining its memory allocations to a CXL NUMA node.
 In this example, the CXL memory is on NUMA node 1.
 
 ```shell
@@ -275,7 +275,7 @@ More extensive documentation for `daxctl` is available in the
 ## Testing CXL Memory
 
 After you run the [bootstrap script](#getting-started), the [benchmarks](benchmarks) subdirectory
-will contain several benchmark tools for testing CXL memory:
+will contain several micro-benchmark tools for testing CXL memory:
 
 - [Intel Memory Latency Checker (MLC)](https://www.intel.com/content/www/us/en/developer/articles/tool/intelr-memory-latency-checker.html)
 - [multichase](https://github.com/cxl-reskit/multichase)
@@ -283,7 +283,7 @@ will contain several benchmark tools for testing CXL memory:
 - [stressapptest](https://github.com/cxl-reskit/stressapptest)
 
 The tools that are open source (multichase, STREAM, stressapptest) have been modified to be able to test
-CXL memory in both [device DAX](#using-cxl-memory-as-a-dax-device) and
+CXL memory in [device DAX](#using-cxl-memory-as-a-dax-device) as well as
 [system RAM](#using-cxl-memory-as-system-ram) modes.
 
 Usage documentation for all the benchmark tools is in [benchmarks/README.md](benchmarks/README.md).
@@ -296,6 +296,11 @@ and health information about a CXL device, read logs, issue resets, and
 perform other support actions. It also has options to access standard PCIe capability and extended
 capability registers along with non-standard CXL specific DVSEC and DOE capability control
 registers, making it useful for debug and diagnostics.
+
+To see the full command line help, use the `./mxcli --help` command.
+If you run `mxcli` with an unqualified command line, it will provide a menu interface.
+
+The following example issues an IDENTIFY mailbox command to a CXL memory device.
 
 ```text
 $ sudo ./mxcli -d /dev/cxl/mem0 -cmd identify
