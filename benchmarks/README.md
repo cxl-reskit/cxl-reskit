@@ -24,7 +24,7 @@ If your CXL memory is in [device DAX mode](../README.md#using-cxl-memory-as-a-da
 you can test it by running benchmarks on the DAX device (e.g. `/dev/dax0.0`).
 
 In this configuration, the "memory under test" is the CXL memory, but the benchmark code is running
-from local DRAM.
+from system DRAM.
 
 If no DAX devices are visible, your memory may be "online" as a NUMA node.
 In this case, you can still use the `numactl` program to run benchmarks on the CXL NUMA node.
@@ -67,7 +67,7 @@ cd multichase
 make all
 ```
 
-### Run multichase against local DRAM
+### Run multichase against system DRAM
 
 ```shell
 ./multichase
@@ -103,7 +103,7 @@ cd STREAM
 make all
 ```
 
-### Run STREAM against local DRAM
+### Run STREAM against system DRAM
 
 ```shell
 ./stream -a 1000000000
@@ -139,7 +139,7 @@ cd stressapptest
 ./configure && make -j`nproc`
 ```
 
-### Run stressapptest against local DRAM
+### Run stressapptest against system DRAM
 
 ```shell
 src/stressapptest
