@@ -8,6 +8,27 @@
 #
 mkdir -p benchmarks
 cd ./benchmarks
+if [ ! -d "mlc" ]; then
+	echo -e "\nGetting benchmarks/mlc\n"
+	if ! command -v wget --version &> /dev/null
+	then
+	    echo "Wget is not installed (or not in the PATH)"
+	    echo "Please install wget and retry"
+	    exit
+	fi
+	wget https://downloadmirror.intel.com/736634/mlc_v3.9a.tgz
+	mkdir -p mlc
+	tar -xzf mlc_v3.9a.tgz -C mlc
+	rm mlc_v3.9a.tgz
+else
+	echo -e "\nAlready present: benchmarks/mlc\n"
+fi
+if ! command -v git --version &> /dev/null
+then
+    echo "Git is not installed (or not in the PATH)"
+    echo "Please install git and retry"
+    exit
+fi
 if [ ! -d "multichase" ]; then
 	echo -e "\nCloning benchmarks/multichase\n"
 	git clone https://github.com/cxl-reskit/multichase.git
@@ -25,13 +46,4 @@ if [ ! -d "stressapptest" ]; then
 	git clone https://github.com/cxl-reskit/stressapptest.git
 else
 	echo -e "\nAlready present: benchmarks/stressapptest\n"
-fi
-if [ ! -d "mlc" ]; then
-	echo -e "\nGetting benchmarks/mlc\n"
-	wget https://downloadmirror.intel.com/736634/mlc_v3.9a.tgz
-	mkdir -p mlc
-	tar -xzf mlc_v3.9a.tgz -C mlc
-	rm mlc_v3.9a.tgz
-else
-	echo -e "\nAlready present: benchmarks/mlc\n"
 fi
