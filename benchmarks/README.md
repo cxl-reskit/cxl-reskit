@@ -7,7 +7,7 @@ CXL memory.
 
 Build instructions are in the sections below for each benchmark.
 
-Note that it might be necessary to install compilers and development tools to complete these builds.
+Note that it might be necessary to install prerequisite packages such as compilers and development tools to complete these builds.
 
 ## Quick Links
 
@@ -44,7 +44,7 @@ The Memory Latency Checker (`mlc`) program from Intel is a valuable tool for und
 performance. It is not open source, but can be freely downloaded from
 [this website](https://www.intel.com/content/www/us/en/developer/articles/tool/intelr-memory-latency-checker.html).
 
-`mlc` only tests local DRAM and CXL memory via NUMA. It cannot be used to test CXL memory that is
+`mlc` only tests system DRAM and CXL memory via NUMA. It cannot be used to test CXL memory that is
 in device DAX mode.
 
 ```shell
@@ -77,7 +77,7 @@ make all
 
 When running multichase with the `-d <daxdev>` argument, the memory-under-test is allocated from
 the DAX device, but all other memory used by the benchmark (code, stacks, local data) is allocated
-from local DRAM.
+from system DRAM.
 
 ```shell
 sudo ./multichase -d <dax-device>
@@ -113,7 +113,7 @@ make all
 
 When running `stream` with the `--memdev <daxdev>` argument, the memory-under-test is allocated
 from the DAX device, but all other memory used by the benchmark (code, stacks, local data) is
-allocated from local DRAM.
+allocated from system DRAM.
 
 ```shell
 sudo ./stream -a 1000000000 --memdev <dax-device>
@@ -149,7 +149,7 @@ src/stressapptest
 
 When running `stressapptest` with the `-D <daxdev>` argument, the memory-under-test is allocated
 from the DAX device, but all other memory used by the benchmark (code, stacks, local data) is
-allocated from local DRAM.
+allocated from system DRAM.
 
 ```shell
 sudo src/stressapptest -D <dax-device>
