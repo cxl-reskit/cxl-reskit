@@ -275,7 +275,7 @@ More extensive documentation for `daxctl` is available in the
 ## Testing CXL Memory
 
 After you run the [bootstrap script](#getting-started), the [benchmarks](benchmarks) subdirectory
-will contain several micro-benchmark tools for testing CXL memory:
+will contain several benchmark tools for testing CXL memory:
 
 - [Intel Memory Latency Checker (MLC)](https://www.intel.com/content/www/us/en/developer/articles/tool/intelr-memory-latency-checker.html)
 - [multichase](https://github.com/cxl-reskit/multichase)
