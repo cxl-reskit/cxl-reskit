@@ -116,7 +116,7 @@ from the DAX device, but all other memory used by the benchmark (code, stacks, l
 allocated from system DRAM.
 
 ```shell
-sudo ./stream -a 1000000000 --memdev <dax-device>
+sudo ./stream -a 1000000000 -d <dax-device>
 ```
 
 ### Run STREAM against a NUMA node
