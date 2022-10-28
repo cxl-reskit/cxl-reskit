@@ -59,9 +59,6 @@ might need to know about a system configured with CXL memory, for example:
 - Are there CXL memory devices present in your system?
 - How is your CXL memory currently configured?
 
-```shell
-./cxlstat
-```
 
 ```text
 $ sudo ./cxlstat
@@ -94,6 +91,10 @@ Standard CXL mailbox commands may be used (no vendor-specific commands allowed).
 
 The `cxlstat` tool is intended both as a useful way of checking your configuration, and as an example of how to
 do so in your own scripts or programs.
+
+Important note: If you run `cxlstat` as root (or via sudo), all information is available.
+If you run it from a non-privileged account, some information (e.g. host physical address ranges)
+may be omitted. For this reason we recommend running it as root or under sudo.
 
 ## About Kernel Support for CXL Memory
 
