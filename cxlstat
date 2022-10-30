@@ -292,7 +292,7 @@ function print_cxl_device_info()
         echo -e "            CXL Device : ${device}"
         echo -e "                Vendor : ${vendor}"
         echo -e "             Device ID : ${device_id}"
-        echo -e "         PCI-E Address : ${CXL_DEVICES[${device}]}"
+        echo -e "          PCIe Address : ${CXL_DEVICES[${device}]}"
         echo -e "                  Size : ${device_size} GB"
         echo -ne "       Mailbox Present : "
 
