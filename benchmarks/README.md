@@ -111,7 +111,7 @@ make all
 
 ### Run STREAM against a DAX device
 
-When running `stream` with the `--memdev <daxdev>` argument, the memory-under-test is allocated
+When running `stream` with the `-d <daxdev>` argument, the memory-under-test is allocated
 from the DAX device, but all other memory used by the benchmark (code, stacks, local data) is
 allocated from system DRAM.
 
