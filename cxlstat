@@ -292,7 +292,7 @@ function print_cxl_device_info()
         echo -e "            CXL Device : ${device}"
         echo -e "                Vendor : ${vendor}"
         echo -e "             Device ID : ${device_id}"
-        echo -e "               Address : ${CXL_DEVICES[${device}]}"
+        echo -e "          PCIe Address : ${CXL_DEVICES[${device}]}"
         echo -e "                  Size : ${device_size} GB"
         echo -ne "       Mailbox Present : "
 
@@ -407,14 +407,14 @@ function print_dax_device_info()
         echo -e "                  Path : /dev/${chardev}"
         echo -e "                  Size : ${size} GB"
         if (( mem_range_known == 1 )) ; then
-            echo -e "          Memory Range : 0x${mem_base}-0x${mem_top} (${mem_range} GB)"
+            echo -e "      Memory HPA Range : 0x${mem_base}-0x${mem_top} (${mem_range} GB)"
         else
-            echo -e "          Memory Range : UNKNOWN"
+            echo -e "      Memory HPA Range : UNKNOWN (run as root to see HPA range)"
         fi
         if [[ "${mode}" == "devdax" ]] ; then
             echo -e "                  Mode : ${mode} (memory directly usable only via DAX access)"
         else
-            echo -e "                  Mode : ${mode} (memory directly usable via numactl)"
+            echo -e "                  Mode : ${mode} (memory directly usable, e.g. via numactl)"
         fi
     done <<< "$(grep -n \{ < ${tmpfile} | cut -d : -f 1)"
 
@@ -446,7 +446,7 @@ function deb_package_check()
     local __dpc_minor_ver
     local __dpc_upgradable
     local __dpc_tmp
-    
+
     if dpkg -s "${__dpc_package_nm}" > /dev/null 2>&1 ; then
         __dpc_installed=1
     else
@@ -754,9 +754,14 @@ if (( "${VERBOSE}" == 1 )) ; then
         else
             echo "Standard CXL mailbox commands may be used (no vendor-specific commands allowed)."
         fi
+    elif (( "${KERNEL_CFG_KNOWN}" == 1 )); then
+        echo "CXL driver stack disabled in your kernel."
+        echo "Note: CXL memory will still work if BIOS and CPU support CXL"
     else
-        echo "No clear kernel support for CXL devices"
+        echo "CXL driver stack not detected in your kernel."
+        echo "Note: CXL memory will still work if BIOS and CPU support CXL"
     fi
+    echo
 fi
 
 exit 0
