@@ -1,0 +1,12 @@
+[wrap-file]
+directory = mlc
+lead_directory_missing = true
+
+source_url = https://downloadmirror.intel.com/736634/mlc_v3.9a.tgz
+source_filename = mlc.tgz
+source_hash = def348fc2430c98e0a3057acb75c2455879cb318a08d7c8621420a6a2f7bf56e
+
+patch_directory=mlc
+
+[provide]
+program_names = mlc

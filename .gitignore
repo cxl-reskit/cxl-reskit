@@ -53,3 +53,10 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+/subprojects/*
+!/subprojects/packagefiles
+!/subprojects/mlc.wrap
+!/subprojects/multichase.wrap
+!/subprojects/ndctl.wrap
+!/subprojects/STREAM.wrap

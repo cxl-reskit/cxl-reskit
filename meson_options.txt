@@ -1,0 +1,2 @@
+option('benchmarks', type: 'boolean', value: true,
+    description: 'Build benchmarks')

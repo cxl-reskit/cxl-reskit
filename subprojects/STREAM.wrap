@@ -1,0 +1,9 @@
+[wrap-git]
+url = https://github.com/jagalactic/STREAM.git
+revision = master
+depth = 1
+
+patch_directory=STREAM
+
+[provide]
+program_names = stream
